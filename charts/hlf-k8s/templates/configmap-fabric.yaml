@@ -1,0 +1,289 @@
+# Copyright 2018 Owkin, inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "substra.fullname" . }}-fabric
+data:
+  discoverConfig.yaml: |
+    version: 0
+    tlsconfig:
+      certpath: /var/hyperledger/tls/client/pair/tls.crt
+      keypath: /var/hyperledger/tls/client/pair/tls.key
+      peercacertpath: /var/hyperledger/tls/server/cert/cacert.pem
+      timeout: 0s
+    signerconfig:
+      mspid: {{ .Values.organization.id }}
+      identitypath: /var/hyperledger/msp/signcerts/cert.pem
+      keypath: /var/hyperledger/msp/keystore/key.pem
+  configtx.yaml: |
+    Organizations:
+    - &id001
+      Name: {{ .Values.organization.name }}
+      ID: {{ .Values.organization.id }}
+      MSPDir: /var/hyperledger/admin_msp
+
+      Policies: &id002
+        Readers:
+            Type: Signature
+            Rule: "OR('{{ .Values.organization.id }}.member')"
+        Writers:
+            Type: Signature
+            Rule: "OR('{{ .Values.organization.id }}.member')"
+        Admins:
+            Type: Signature
+            Rule: "OR('{{ .Values.organization.id }}.admin')"
+        Endorsement:
+            Type: Signature
+            Rule: "OR('{{ .Values.organization.id }}.member')"
+
+      {{- if index .Values "hlf-peer" "enabled" }}
+      AnchorPeers:
+      - Host: {{ index .Values "hlf-peer" "host" }}
+        Port: {{ index .Values "hlf-peer" "port" }}
+      {{- end }}
+
+      {{- if index .Values "hlf-ord" "enabled" }}
+      OrdererEndpoints:
+      - "{{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}"
+      {{- end }}
+
+    Capabilities:
+      Channel: &ChannelCapabilities
+          V2_0: true
+
+      Orderer: &OrdererCapabilities
+          V2_0: true
+
+      Application: &ApplicationCapabilities
+          V2_0: true
+
+    Application: &ApplicationDefaults
+
+      Organizations: null
+
+      Policies: &ApplicationDefaultPolicies
+        LifecycleEndorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+        Endorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "ANY Admins"
+
+      Capabilities:
+          <<: *ApplicationCapabilities
+
+    Profiles:
+      {{- if index .Values "hlf-peer" "enabled" }}
+      {{- range .Values.appChannels }}
+      OrgsChannel-{{ .channelName }}:
+        Capabilities:
+          V2_0: true
+        Policies:
+          {{- .channelPolicies | nindent 12 }}
+        Application:
+          <<: *ApplicationDefaults
+          {{- if .appPolicies }}
+          Policies:
+            {{- .appPolicies | nindent 12 -}}
+          {{- end }}
+          Organizations:
+          - *id001
+        Consortium: SampleConsortium
+      {{- end }}
+      {{- end }}
+
+      {{- if index .Values "hlf-ord" "enabled" }}
+      GenerateGenesis:
+        Policies:
+          {{- .Values.systemChannel.policies | nindent 12 }}
+        Capabilities:
+          V2_0: true
+        Consortiums:
+          SampleConsortium:
+            Organizations: *id001
+        Orderer:
+          Addresses:
+          - {{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}
+          EtcdRaft:
+            Consenters:
+            - Host: {{ index .Values "hlf-ord" "host" }}
+              Port: {{ index .Values "hlf-ord" "port" }}
+              ClientTLSCert: /var/hyperledger/tls/client/pair/tls.crt
+              ServerTLSCert: /var/hyperledger/tls/server/pair/tls.crt
+          BatchSize:
+            AbsoluteMaxBytes: 99 MB
+            MaxMessageCount: {{ index .Values "hlf-ord" "maxMessageCount" }}
+            PreferredMaxBytes: 512 KB
+          BatchTimeout: {{ index .Values "hlf-ord" "batchTimeout" }}
+          OrdererType: etcdraft
+          Organizations:
+          - *id001
+          Capabilities:
+            V2_0: true
+          Policies:
+            {{- index .Values "hlf-ord" "policies" | nindent 12 }}
+      {{- end }}
+
+  core.yaml: |
+    chaincode:
+      builder: {{ index .Values "hlf-peer" "peer" "chaincode" "builder" }}
+      golang:
+          runtime: {{index .Values "hlf-peer" "peer" "chaincode" "runtime" "golang"}}
+      externalBuilders:
+        - name: external-builder
+          path: /builders
+    peer:
+      BCCSP:
+        Default: SW
+        PKCS11:
+          FileKeyStore:
+            KeyStore: null
+          Hash: null
+          Label: null
+          Library: null
+          Pin: null
+          Security: null
+        SW:
+          FileKeyStore:
+            KeyStore: null
+          Hash: SHA2
+          Security: 256
+      {{- if index .Values "hlf-ord" "enabled" }}
+      address: {{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}
+      {{- else }}
+      address: {{ index .Values "hlf-peer" "host" }}:{{ index .Values "hlf-peer" "port" }}
+      {{- end }}
+      addressAutoDetect: false
+      adminService: null
+      authentication:
+        timewindow: 15m
+      client:
+        connTimeout: 3s
+      deliveryclient:
+        connTimeout: 3s
+        reConnectBackoffThreshold: 3600s
+        reconnectTotalTimeThreshold: 3600s
+      discovery:
+        authCacheEnabled: true
+        authCacheMaxSize: 1000
+        authCachePurgeRetentionRatio: 0.75
+        enabled: true
+        orgMembersAllowedAccess: false
+      fileSystemPath: /var/hyperledger/production
+      gomaxprocs: -1
+      gossip:
+        aliveExpirationTimeout: 25s
+        aliveTimeInterval: 5s
+        bootstrap: 127.0.0.1:7051
+        connTimeout: 2s
+        dialTimeout: 3s
+        digestWaitTime: 1s
+        election:
+          leaderAliveThreshold: 10s
+          leaderElectionDuration: 5s
+          membershipSampleInterval: 1s
+          startupGracePeriod: 15s
+        endpoint: null
+        {{- if index .Values "hlf-ord" "enabled" }}
+        externalEndpoint: {{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}
+        {{- else }}
+        externalEndpoint: {{ index .Values "hlf-peer" "host" }}:{{ index .Values "hlf-peer" "port" }}
+        {{- end }}
+        maxBlockCountToStore: 100
+        maxPropagationBurstLatency: 10ms
+        maxPropagationBurstSize: 10
+        membershipTrackerInterval: 5s
+        orgLeader: 'false'
+        propagateIterations: 1
+        propagatePeerNum: 3
+        publishCertPeriod: 10s
+        publishStateInfoInterval: 4s
+        pullInterval: 4s
+        pullPeerNum: 3
+        pvtData:
+          btlPullMargin: 10
+          pullRetryThreshold: 60s
+          pushAckTimeout: 3s
+          reconcileBatchSize: 10
+          reconcileSleepInterval: 1m
+          reconciliationEnabled: true
+          transientstoreMaxBlockRetention: 1000
+        reconnectInterval: 25s
+        recvBuffSize: 20
+        requestStateInfoInterval: 4s
+        requestWaitTime: 1500ms
+        responseWaitTime: 2s
+        sendBuffSize: 200
+        skipBlockVerification: false
+        skipHandshake: 'true'
+        stateInfoRetentionInterval: null
+        useLeaderElection: 'true'
+      handlers:
+        authFilters:
+        - name: DefaultAuth
+        - name: ExpirationCheck
+        decorators:
+        - name: DefaultDecorator
+        endorsers:
+          escc:
+            library: null
+            name: DefaultEndorsement
+        validators:
+          vscc:
+            library: null
+            name: DefaultValidation
+      id: {{ .Values.organization.name }}
+      keepalive:
+        client:
+          interval: 60s
+          timeout: 20s
+        deliveryClient:
+          interval: 60s
+          timeout: 20s
+        minInterval: 60s
+      listenAddress: 0.0.0.0:7051
+      localMspId: {{ .Values.organization.id }}
+      localMspType: bccsp
+      mspConfigPath: /var/hyperledger/admin_msp
+      networkId: dev
+      profile:
+        enabled: false
+        listenAddress: 0.0.0.0:6060
+      tls:
+        enabled: 'true'
+        cert:
+          file: /var/hyperledger/tls/server/pair/tls.crt
+        key:
+          file: /var/hyperledger/tls/server/pair/tls.key
+        clientAuthRequired: 'true'
+        clientCert:
+          file: /var/hyperledger/tls/client/pair/tls.crt
+        clientKey:
+          file: /var/hyperledger/tls/client/pair/tls.key
+        clientRootCAs:
+        - /var/hyperledger/admin_msp/cacerts/cacert.pem
+        rootcert:
+          file: /var/hyperledger/admin_msp/cacerts/cacert.pem
+      validatorPoolSize: null

@@ -1,0 +1,43 @@
+{{- range $channel := .Values.appChannels }}
+{{- if .ingress }}
+{{- if .ingress.enabled }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "substra.fullname" $ }}-appchannel-operator-{{ $channel.channelName }}
+  labels:
+    app.kubernetes.io/name: {{ template "substra.fullname" $ }}-appchannel-operator-{{ $channel.channelName }}
+    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+  {{- with .ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+{{- if .ingress.tls }}
+  tls:
+  {{- range .ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+      secretName: {{ .secretName }}
+  {{- end }}
+{{- end }}
+  rules:
+  {{- range .ingress.hosts  }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ . }}
+            backend:
+              serviceName: {{ template "substra.fullname" $ }}-appchannel-operator-{{ $channel.channelName }}
+              servicePort: http
+        {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

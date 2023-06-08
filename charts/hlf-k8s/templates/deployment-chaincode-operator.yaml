@@ -1,0 +1,299 @@
+# Copyright 2018 Owkin, inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- if index .Values "hlf-peer" "enabled" }}
+{{- range .Values.chaincodes }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-%s-chaincode-operator-%s" $.Release.Name $.Chart.Name .name | lower | trunc 63 | trimSuffix "-" }}
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    app.kubernetes.io/name: {{ printf "%s-chaincode-operator-%s" $.Chart.Name .name | lower | trunc 63 | trimSuffix "-" }}
+    app.kubernetes.io/part-of: {{ $.Release.Name | lower | trunc 63 | trimSuffix "-" }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+        app.kubernetes.io/name: {{ template "substra.name" $ }}-chaincode-operator
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ template "substra.name" $ }}-chaincode-operator
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+    spec:
+      serviceAccountName: {{ template "substra.fullname" $ }}
+      containers:
+        - name: fabric-tools
+          image: {{ index $.Values "fabric-tools" "image" "repository" }}:{{ index $.Values "fabric-tools" "image" "tag" }}
+          imagePullPolicy: "{{ index $.Values "fabric-tools" "image" "pullPolicy" }}"
+          command: ['bash', '-c']
+          args:
+            - |
+              ## Update CA certs
+              update-ca-certificates
+
+              ## Check connection with the Peer
+              printf "[DEBUG] Testing the connection with the Peer ({{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }})\n"
+              until $(nc -z {{ index $.Values "hlf-peer" "host" }} {{ index $.Values "hlf-peer" "port" }}); do
+                printf "[DEBUG] Peer ({{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }}) is not reacheable, retry in 5s\n"
+                sleep 5
+              done
+
+              ## Check connection with the Orderer
+              printf "[DEBUG] Testing the connection with the Orderer ({{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }})\n"
+              until $(nc -z {{ index $.Values "hlf-ord" "host" }} {{ index $.Values "hlf-ord" "port" }}); do
+                printf "[DEBUG] Orderer ({{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }}) is not reacheable, retry in 5s\n"
+                sleep 5
+              done
+
+              ## Install chaincode on peer
+              while true; do
+
+                peer lifecycle chaincode queryinstalled -O json > chaincode.list 2>/dev/null
+
+                while ! [ -s chaincode.list ]; do
+                  printf "[DEBUG] chaincode.list file is empty, retry in 5s\n"
+                  sleep 5
+                  peer lifecycle chaincode queryinstalled -O json > chaincode.list 2>/dev/null
+                done
+
+                until jq -e '.installed_chaincodes[] | select(.label=="{{ .name }}")' chaincode.list > /dev/null; do
+                  printf "[DEBUG] Chaincode {{ .name }} not installed\n"
+                  printf "[DEBUG] Installing chaincode {{ .name }}\n"
+
+                  ## Clean potential remaining artifacts
+                  rm -f code.tar.gz chaincode.tgz connection.json metadata.json
+
+                  printf "[DEBUG] Generate connection.json for {{ .name }}\n"
+
+                  echo "{
+                  \"address\": \"{{ .address }}:{{ .port }}\",
+                  \"dial_timeout\": \"10s\",
+                  \"tls_required\": true,
+                  \"client_auth_required\": true,
+                  \"client_key\": \"$(awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' /var/hyperledger/tls/client/pair/tls.key)\",
+                  \"client_cert\": \"$(awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' /var/hyperledger/tls/client/pair/tls.crt)\",
+                  \"root_cert\": \"$(awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' /var/hyperledger/tls/client/cert/cacert.pem)\"
+                  }" > connection.json
+
+                  cat connection.json
+
+                  printf "[DEBUG] Archive connection.json to code.tar.gz for {{ .name }}\n"
+                  tar cfz code.tar.gz connection.json
+
+                  printf "[DEBUG] Generate metadata.json for {{ .name }}\n"
+                  echo '{"path":"", "type":"external", "label":"{{ .name }}"}' > metadata.json
+
+                  printf "[DEBUG] Archive  code.tar.gz and metadata.json to chaincode.tgz for {{ .name }}\n"
+                  tar cfz chaincode.tgz code.tar.gz metadata.json
+
+                  ## Install chaincode
+                  printf "[DEBUG] Install chaincode {{ .name }}\n"
+                  peer lifecycle chaincode install chaincode.tgz 2>/dev/null
+
+
+                  peer lifecycle chaincode queryinstalled -O json > chaincode.list 2>/dev/null
+
+                  if  jq -e '.installed_chaincodes[] | select(.label=="{{ .name }}")' chaincode.list > /dev/null; then
+                    CHAINCODE_CCID=$(jq '.installed_chaincodes[] | select(.label=="{{ .name }}")' chaincode.list | jq -r .package_id)
+                    printf "[DEBUG] Chaincode {{ .name }} installed with ccid : ${CHAINCODE_CCID}\n"
+                  fi
+
+                  sleep 10
+                done
+
+                CHAINCODE_CCID=$(jq '.installed_chaincodes[] | select(.label=="{{ .name }}")' chaincode.list | jq -r .package_id)
+
+                until kubectl get secret chaincode-ccid-{{ .name }} > /dev/null; do
+                    printf "[DEBUG] Create chaincode ccid secret for {{ .name }}\n"
+                    kubectl create secret generic chaincode-ccid-{{ .name }} --from-literal=ccid=$CHAINCODE_CCID
+                done
+
+                ## Approve chaincode
+
+                {{ $chaincode := . }}
+                {{- range $channel := $.Values.appChannels }}
+                {{- range $channel.chaincodes }}
+                {{- if and (eq .name $chaincode.name) (eq .version $chaincode.version) }}
+
+                while true ; do
+
+                  printf "[DEBUG] Approving chaincode {{ .name }} {{ $chaincode.version }} with ccid ${CHAINCODE_CCID} on channel {{ $channel.channelName }}\n"
+
+                  peer lifecycle chaincode approveformyorg \
+                    --signature-policy "{{ .policy}}" \
+                    --channelID {{ $channel.channelName }} \
+                    --name {{ .name }} \
+                    --version {{ $chaincode.version }} \
+                    --package-id $CHAINCODE_CCID \
+                    --sequence 1  \
+                    --init-required \
+                    --tls \
+                    --clientauth \
+                    --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
+                    --keyfile /var/hyperledger/tls/client/pair/tls.key \
+                    --certfile /var/hyperledger/tls/client/pair/tls.crt \
+                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} > /dev/null 2>&1
+
+                  peer lifecycle chaincode queryapproved \
+                    --channelID {{ $channel.channelName }} \
+                    --name {{ .name }} \
+                    --sequence 1 \
+                    --tls \
+                    --clientauth \
+                    --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
+                    --keyfile /var/hyperledger/tls/client/pair/tls.key \
+                    --certfile /var/hyperledger/tls/client/pair/tls.crt \
+                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} > chaincode.approve 2>&1
+
+
+                  if grep "${CHAINCODE_CCID}" chaincode.approve > /dev/null; then
+                    break
+                  fi
+
+                  printf "[DEBUG] Chaincode {{ .name }} {{ .version }} with ccid ${CHAINCODE_CCID} is not approved on channel {{ $channel.channelname }}\n"
+
+                  sleep 5
+
+                done
+
+                {{- end }}
+                {{- end }}
+                {{- end }}
+
+                sleep 10
+              done
+          resources:
+            {{- toYaml $.Values.resources | nindent 14 }}
+          env:
+          - name: CORE_PEER_MSPCONFIGPATH
+            value: /var/hyperledger/admin_msp
+          - name: GODEBUG
+            value: "netdns=go+1"
+          volumeMounts:
+            - mountPath: /etc/hyperledger/fabric
+              name: fabric-config
+              readOnly: true
+            - mountPath: /var/hyperledger/msp/signcerts
+              name: id-cert
+            - mountPath: /var/hyperledger/msp/keystore
+              name: id-key
+            - mountPath: /var/hyperledger/msp/cacerts
+              name: cacert
+            - mountPath: /var/hyperledger/msp/tlscacerts
+              name: cacert
+            - mountPath: /var/hyperledger/msp/admincerts
+              name: admin-cert
+            - mountPath: /var/hyperledger/tls/server/pair
+              name: tls
+            - mountPath: /var/hyperledger/tls/server/cert
+              name: tls-rootcert
+            - mountPath: /var/hyperledger/tls/client/pair
+              name: tls-client
+            - mountPath: /var/hyperledger/tls/client/cert
+              name: tls-clientrootcert
+            - mountPath: /var/hyperledger/tls/ord/cert
+              name: ord-tls-rootcert
+            - mountPath: /var/hyperledger/admin_msp/signcerts
+              name: admin-cert
+            - mountPath: /var/hyperledger/admin_msp/keystore
+              name: admin-key
+            - mountPath: /var/hyperledger/admin_msp/cacerts
+              name: cacert
+            - mountPath: /var/hyperledger/admin_msp/tlscacerts
+              name: cacert
+            - mountPath: /var/hyperledger/admin_msp/admincerts
+              name: admin-cert
+            - mountPath: /data
+              name: data
+            {{- if $.Values.privateCa.enabled }}
+            - mountPath: /usr/local/share/ca-certificates/{{ $.Values.privateCa.configMap.fileName }}
+              name: private-ca
+              subPath: {{ $.Values.privateCa.configMap.fileName }}
+            {{- end }}
+            {{- if or .hostPath .configMap }}
+            - mountPath: /chaincode
+              name: chaincode
+              readOnly: true
+            {{- end }}
+      volumes:
+      - name: fabric-config
+        configMap:
+          name: {{ template "substra.fullname" $ }}-fabric
+      - name: id-cert
+        secret:
+          secretName: {{ $.Values.secrets.cert }}
+      - name: id-key
+        secret:
+          secretName: {{ $.Values.secrets.key }}
+      - name: cacert
+        secret:
+          secretName: {{ $.Values.secrets.caCert }}
+      - name: tls
+        secret:
+          secretName: {{ $.Values.secrets.tls }}
+      - name: tls-rootcert
+        secret:
+          secretName: {{ $.Values.secrets.tlsRootCert }}
+      - name: tls-client
+        secret:
+          secretName: {{ $.Values.secrets.tlsClient }}
+      - name: tls-clientrootcert
+        secret:
+          secretName: {{ $.Values.secrets.tlsClientRootCert }}
+      - name: admin-cert
+        secret:
+          secretName: {{ $.Values.secrets.adminCert }}
+      - name: admin-key
+        secret:
+          secretName: {{ $.Values.secrets.adminKey }}
+      - name: ord-tls-rootcert
+        secret:
+          secretName: {{ $.Values.secrets.ordTlsRootCert }}
+      - name: data
+        emptyDir: {}
+      {{- if $.Values.privateCa.enabled }}
+      - name: private-ca
+        configMap:
+          name: {{ $.Values.privateCa.configMap.name }}
+      {{- end }}
+      {{- if .hostPath }}
+      - name: chaincode
+        hostPath:
+          path: {{ .hostPath }}
+      {{- end }}
+      {{- if .configMap }}
+      - name: chaincode
+        configMap:
+          name: {{ .configMap.name }}
+      {{- end }}
+    {{- with $.Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+{{- end }}
+{{- end }}
