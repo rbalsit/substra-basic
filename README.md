@@ -1,3 +1,30 @@
+# Steps to run:
+# Helm
+wget https://get.helm.sh/helm-v3.8.2-linux-amd64.tar.gz
+tar -zxvf helm-v3.8.2-linux-amd64.tar.gz
+mv linux-amd64/helm /usr/local/bin/helm
+helm version
+
+# Skaffold
+curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64 && \
+sudo install skaffold /usr/local/bin/
+
+# Download source
+git clone https://github.com/rbalsit/substra-basic.git
+
+cd substra-basic
+helm repo add stable https://charts.helm.sh/stable
+helm repo update	
+
+helm repo add substra https://owkin.github.io/charts/
+
+SUBSTRA_HLF_VERSION=0.0.16
+skaffold deploy --images substrafoundation/fabric-tools:$SUBSTRA_HLF_VERSION --images substrafoundation/fabric-peer:$SUBSTRA_HLF_VERSION
+
+
+***************************************************************************************************************
+
+
 # HLF k8s
 
 HLF-k8s is a network of [Hyperledger Fabric](https://hyperledger-fabric.readthedocs.io/en/release-1.4) orderers and peers forming a permissioned blockchain.
