@@ -14,22 +14,18 @@
 
 dependencies:
   - name: hlf-ca
-    repository: https://owkin.github.io/charts/
-    version: 1.2.0
+    version: 2.0.1
+    repository: file://../hlf-ca
     condition: hlf-ca.enabled
   - name: hlf-ord
-    repository: https://owkin.github.io/charts/
-    version: 2.0.0
+    version: 3.0.1
+    repository: file://../hlf-ord
     condition: hlf-ord.enabled
   - name: hlf-peer
-    repository: https://owkin.github.io/charts/
-    version: 2.0.0
+    version: 5.0.0
+    repository: file://../hlf-peer
     condition: hlf-peer.enabled
   - name: hlf-couchdb
-    repository: https://owkin.github.io/charts/
-    version: 1.0.7
+    version: 2.0.1
+    repository: file://../hlf-couchdb
     condition: hlf-peer.enabled
-  - name: nginx-ingress
-    repository: https://charts.helm.sh/stable
-    version: ~1.29.2
-    condition: nginx-ingress.enabled

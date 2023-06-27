@@ -38,6 +38,10 @@ spec:
         app.kubernetes.io/instance: {{ $.Release.Name }}
     spec:
       serviceAccountName: {{ template "substra.fullname" $ }}
+      {{- if index $.Values "fabric-tools" "image" "pullImageSecret" }}
+      imagePullSecrets:
+        - name: {{ index $.Values "fabric-tools" "image" "pullImageSecret" }}
+      {{- end }}
       containers:
         - name: fabric-tools
           image: {{ index $.Values "fabric-tools" "image" "repository" }}:{{ index $.Values "fabric-tools" "image" "tag" }}
@@ -62,7 +66,9 @@ spec:
                 sleep 5
               done
 
-              ## Install chaincode on peer
+
+              ## Install chaincode
+
               while true; do
 
                 peer lifecycle chaincode queryinstalled -O json > chaincode.list 2>/dev/null
@@ -120,10 +126,11 @@ spec:
 
                 CHAINCODE_CCID=$(jq '.installed_chaincodes[] | select(.label=="{{ .name }}")' chaincode.list | jq -r .package_id)
 
-                until kubectl get secret chaincode-ccid-{{ .name }} > /dev/null; do
-                    printf "[DEBUG] Create chaincode ccid secret for {{ .name }}\n"
-                    kubectl create secret generic chaincode-ccid-{{ .name }} --from-literal=ccid=$CHAINCODE_CCID
+                until kubectl get secret chaincode-ccid-{{ .name }}-{{ .version }} > /dev/null; do
+                    printf "[DEBUG] Create chaincode ccid secret for {{ .name }} {{ .version }}\n"
+                    kubectl create secret generic chaincode-ccid-{{ .name }}-{{ .version }} --from-literal=ccid=$CHAINCODE_CCID
                 done
+
 
                 ## Approve chaincode
 
@@ -132,17 +139,17 @@ spec:
                 {{- range $channel.chaincodes }}
                 {{- if and (eq .name $chaincode.name) (eq .version $chaincode.version) }}
 
-                while true ; do
+                until grep -q "${CHAINCODE_CCID}" chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.approve; do
 
-                  printf "[DEBUG] Approving chaincode {{ .name }} {{ $chaincode.version }} with ccid ${CHAINCODE_CCID} on channel {{ $channel.channelName }}\n"
+                  printf "[DEBUG] Approving chaincode {{ .name }} {{ .version }} with ccid ${CHAINCODE_CCID} on channel {{ $channel.channelName }}\n"
 
                   peer lifecycle chaincode approveformyorg \
                     --signature-policy "{{ .policy}}" \
                     --channelID {{ $channel.channelName }} \
                     --name {{ .name }} \
-                    --version {{ $chaincode.version }} \
+                    --version {{ .version }} \
                     --package-id $CHAINCODE_CCID \
-                    --sequence 1  \
+                    --sequence {{ .sequence }}  \
                     --init-required \
                     --tls \
                     --clientauth \
@@ -154,24 +161,117 @@ spec:
                   peer lifecycle chaincode queryapproved \
                     --channelID {{ $channel.channelName }} \
                     --name {{ .name }} \
-                    --sequence 1 \
+                    --sequence {{ .sequence }} \
                     --tls \
                     --clientauth \
                     --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
                     --keyfile /var/hyperledger/tls/client/pair/tls.key \
                     --certfile /var/hyperledger/tls/client/pair/tls.crt \
-                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} > chaincode.approve 2>&1
+                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.approve 2>&1
 
-
-                  if grep "${CHAINCODE_CCID}" chaincode.approve > /dev/null; then
-                    break
+                  if ! grep -q "${CHAINCODE_CCID}" chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.approve; then
+                    printf "[DEBUG] Chaincode {{ .name }} {{ .version }} with ccid ${CHAINCODE_CCID} is not approved on channel {{ $channel.channelname }}\n"
+                    sleep 5
                   fi
 
-                  printf "[DEBUG] Chaincode {{ .name }} {{ .version }} with ccid ${CHAINCODE_CCID} is not approved on channel {{ $channel.channelname }}\n"
+                done
+
+
+                ## Check chaincode commit readiness
+                ## chaincode must be commit ready or, if already committed, return an ask for new definition sequence
+
+                until grep -q -e "true" -e "new definition must be sequence" chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.ready; do
+
+                  printf "[DEBUG] Check chaincode readiness {{ .name }} {{ .version }} on channel {{ $channel.channelName }}\n"
+
+                  peer lifecycle chaincode checkcommitreadiness \
+                    --signature-policy "{{ .policy }}" \
+                    --channelID {{ $channel.channelName }} \
+                    --name {{ .name }} \
+                    --version {{ .version }} \
+                    --sequence {{ .sequence }} \
+                    --init-required \
+                    --tls \
+                    --clientauth \
+                    --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
+                    --keyfile /var/hyperledger/tls/client/pair/tls.key \
+                    --certfile /var/hyperledger/tls/client/pair/tls.crt \
+                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.ready 2>&1
 
                   sleep 5
 
                 done
+
+
+                ## Commit chaincode
+
+                peer lifecycle chaincode querycommitted --channelID {{ $channel.channelName }} > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.committed 2>&1
+
+                if ! grep "Name: {{ .name }}" chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.committed | grep "Version: {{ .version }}" | grep -q "Sequence: {{ .sequence }}"; then
+
+                  # Chaincode commit
+                  printf "[DEBUG] Commit chaincode {{ .name }} {{ .version }} on channel {{ $channel.channelName }}\n"
+
+                  DISCOVERY_PEER=$(discover peers --channel={{ $channel.channelName }} --server={{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }} --tlsKey=/var/hyperledger/tls/client/pair/tls.key --tlsCert=/var/hyperledger/tls/client/pair/tls.crt --peerTLSCA=/var/hyperledger/tls/client/cert/cacert.pem --userKey=/var/hyperledger/msp/keystore/key.pem --userCert=/var/hyperledger/msp/signcerts/cert.pem --MSP {{ $.Values.organization.id }})
+                  DISCOVERY_CONFIG=$(discover config --channel={{ $channel.channelName }} --server={{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }} --tlsKey=/var/hyperledger/tls/client/pair/tls.key --tlsCert=/var/hyperledger/tls/client/pair/tls.crt --peerTLSCA=/var/hyperledger/tls/client/cert/cacert.pem --userKey=/var/hyperledger/msp/keystore/key.pem --userCert=/var/hyperledger/msp/signcerts/cert.pem --MSP {{ $.Values.organization.id }})
+
+                  ENDORSEMENT="";
+
+                  while read -r mspId; do
+                      TLS_ROOT_CERT=$(echo "$DISCOVERY_CONFIG" | jq -r ".msps | .\"${mspId}\" | .tls_root_certs[0]");
+                      ENDPOINT=$(echo "$DISCOVERY_PEER" | jq -r ".[] | select( .MSPID == \"$mspId\" ) | .Endpoint");
+                      echo "${TLS_ROOT_CERT}" | base64 -d > "tlsroot-${mspId}.crt";
+                      ENDORSEMENT="${ENDORSEMENT} --peerAddresses=${ENDPOINT} --tlsRootCertFiles=tlsroot-${mspId}.crt";
+                  done < <(echo "$DISCOVERY_PEER" | jq -r '.[].MSPID')
+
+                  peer lifecycle chaincode commit \
+                      --signature-policy "{{ .policy }}" \
+                      --channelID {{ $channel.channelName  }} \
+                      --name {{ .name }} \
+                      --version {{ .version }} \
+                      --sequence {{ .sequence }} \
+                      --init-required \
+                      --tls \
+                      --clientauth \
+                      --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
+                      --keyfile /var/hyperledger/tls/client/pair/tls.key \
+                      --certfile /var/hyperledger/tls/client/pair/tls.crt \
+                      -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} \
+                      $ENDORSEMENT > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.commit 2>&1
+
+                  cat chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.commit
+
+                  peer lifecycle chaincode querycommitted --channelID {{ $channel.channelName }} > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.committed 2>&1
+
+                  sleep 5
+
+                fi
+
+
+                ## Init chaincode
+
+                if [[ ! -e chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.init ]]; then
+                    touch chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.init
+                fi
+
+                if ! grep "already initialized" chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.init > /dev/null; then
+
+                  printf "[DEBUG] Init chaincode {{ .name }} {{ .version }} on channel {{ $channel.channelName }}\n"
+
+                  peer chaincode invoke --isInit \
+                    --channelID {{ $channel.channelName }} \
+                    --name {{ .name }} \
+                    --tls \
+                    --clientauth \
+                    --cafile /var/hyperledger/tls/ord/cert/cacert.pem \
+                    --keyfile /var/hyperledger/tls/client/pair/tls.key \
+                    --certfile /var/hyperledger/tls/client/pair/tls.crt \
+                    -o {{ index $.Values "hlf-ord" "host" }}:{{ index $.Values "hlf-ord" "port" }} \
+                    -c '{"Args":[""]}' > chaincode_{{ .name }}_{{ .version }}_{{ $channel.channelName }}.init 2>&1
+
+                  sleep 5
+
+                fi
 
                 {{- end }}
                 {{- end }}

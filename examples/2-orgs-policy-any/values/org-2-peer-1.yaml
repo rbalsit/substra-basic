@@ -8,36 +8,38 @@ nginx-ingress:
     scope:
       enabled: false
 
+
 hlf-ca:
+  enabled: false
   caName: rcaOrg2
-  host: network-org-2-peer-1-hlf-ca.org-2
+  host: org-2-peer-1-hlf-ca.org-2
   orderer:
-    host: network-orderer-hlf-ca.orderer
+    host: orderer-hlf-ca.orderer
 
 hlf-ord:
-  host: network-orderer-hlf-ord.orderer
+  host: orderer1-hlf-ord.orderer
 
 hlf-peer:
-  host: network-org-2-peer-1-hlf-peer.org-2
+  host: org-2-peer-1-hlf-peer.org-2
   peer:
-    couchdbInstance: network-org-2-peer-1
+    couchdbInstance: org-2-peer-1
     mspID: MyOrg2MSP
     gossip:
-      externalEndpoint: network-org-2-peer-1-hlf-peer.org-2:7051
+      externalEndpoint: org-2-peer-1-hlf-peer.org-2:7051
   discover-monitor:
     enabled: true
 
 chaincodes:
   - name: mycc
-    address: network-org-2-peer-1-hlf-k8s-chaincode-mycc.org-2
+    address: org-2-peer-1-hlf-k8s-chaincode-mycc.org-2
     port: 7052
     version: "1.0"
     image:
-      repository: substrafoundation/substra-chaincode
-      tag: 0.1.1
+      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic-chaincode                           
+      tag: 4
       pullPolicy: IfNotPresent
   # - name: yourcc
-  #   address: network-org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
+  #   address: org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
   #   port: 7052
   #   version: "1.0"
   #   image:
@@ -78,6 +80,11 @@ appChannels:
   - name: mycc
     policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
     version: "1.0"
+    sequence: "1"    
+
+  organizations:
+    - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: org-1-peer-1-hlf-k8s-config-operator.org-1/config/configOrgWithAnchors.json }
+    - { org: MyOrg2, mspid: MyOrg2MSP, configUrl: org-2-peer-1-hlf-k8s-config-operator.org-2/config/configOrgWithAnchors.json }
 
 # - channelName: yourchannel
 #   channelPolicies: |-
@@ -112,17 +119,22 @@ appChannels:
 #     policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
 #     version: "1.0"
 
-enrollments:
-  creds:
-    - { name: admin, secret: adminpwd, options: "--id.attrs hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert"}
-    - { name: user, secret: pwd, options: "--id.type peer"}
-  # csrHost is set for peer and chaincodes communications
-  csrHost: network-org-2-peer-1-hlf-peer.org-2,network-org-2-peer-1-hlf-k8s-chaincode-mycc.org-2,network-org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
+#   organizations:
+#     - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: org-2-peer-1-hlf-k8s-config-operator.org-2/config/configOrgWithAnchors.json }
+#     - { org: MyOrg2, mspid: MyOrg2MSP, configUrl: org-2-peer-1-hlf-k8s-config-operator.org-2/config/configOrgWithAnchors.json }
+
+
+# enrollments:
+#   creds:
+#     - { name: admin, secret: adminpwd, options: "--id.attrs hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert"}
+#     - { name: user, secret: pwd, options: "--id.type peer"}
+#   # csrHost is set for peer and chaincodes communications
+#   csrHost: org-2-peer-1-hlf-peer.org-2,org-2-peer-1-hlf-k8s-chaincode-mycc.org-2,org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
 
 
 toolbox:
-  enabled: true
+  enabled: false
 
-hooks:
-  serviceAccount:
-    name: substra-delete-hook
+# hooks:
+#   serviceAccount:
+#     name: substra-delete-hook

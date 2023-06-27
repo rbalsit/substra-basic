@@ -11,37 +11,41 @@ hlf-peer:
   enabled: false
 
 hlf-ca:
+  enabled: false
   caName: rcaOrderer
-  host: network-orderer-hlf-ca.orderer
+  host: orderer-hlf-ca.orderer
   orderer:
-    host: network-orderer-hlf-ca.orderer
+    host: orderer-hlf-ca.orderer
 
 hlf-ord:
   enabled: true
   monitor:
     enabled: true
-  host: network-orderer-hlf-ord.orderer
+  host: orderer1-hlf-ord.orderer
   ord:
     mspID: MyOrdererMSP
 
 appChannels:
   - channelName: mychannel
-  - channelName: yourchannel
+  # - channelName: yourchannel
 
 systemChannel:
   organizations:
-    - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: network-org-1-peer-1-hlf-k8s-config-operator.org-1/config/configOrg.json }
-    - { org: MyOrg2, mspid: MyOrg2MSP, configUrl: network-org-2-peer-1-hlf-k8s-config-operator.org-2/config/configOrg.json }
+    - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: org-1-peer-1-hlf-k8s-config-operator.org-1/config/configOrg.json }
+    - { org: MyOrg2, mspid: MyOrg2MSP, configUrl: org-2-peer-1-hlf-k8s-config-operator.org-2/config/configOrg.json }
 
-enrollments:
-  creds:
-  - { name: admin, secret: adminpwd, options: "--id.attrs admin=true:ecert"}
-  - { name: user, secret: pwd, options: "--id.type orderer"}
-  csrHost: network-orderer-hlf-ord.orderer
+# enrollments:
+#   creds:
+#   - { name: admin, secret: adminpwd, options: "--id.attrs admin=true:ecert"}
+#   - { name: user, secret: pwd, options: "--id.type orderer"}
+#   csrHost: orderer-hlf-ord.orderer
 
 toolbox:
-  enabled: true
+  enabled: false
 
-hooks:
-  serviceAccount:
-    name: substra-delete-hook
+genesis:
+  generate: true
+
+# hooks:
+#   serviceAccount:
+#     name: substra-delete-hook

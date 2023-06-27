@@ -23,3 +23,24 @@ sources:
 maintainers:
   - name: ClementGautier
     email: clement@gautier.im
+dependencies:
+  - name: hlf-ca
+    version: 2.0.1
+    repository: file://../hlf-ca
+    condition: hlf-ca.enabled
+  - name: hlf-ord
+    version: 3.0.1
+    repository: file://../hlf-ord
+    condition: hlf-ord.enabled
+  - name: hlf-peer
+    version: 5.0.0
+    repository: file://../hlf-peer
+    condition: hlf-peer.enabled
+  - name: hlf-couchdb
+    version: 2.0.1
+    repository: file://../hlf-couchdb
+    condition: hlf-peer.enabled
+annotations:
+  artifacthub.io/changes: |
+    - Charts using API v2 now, officially dropping support form Helm v2
+    - Remove nginx-ingress dependency

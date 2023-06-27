@@ -27,12 +27,13 @@ spec:
         - name: substra-chaincode-{{ .name }}
           image: {{ .image.repository }}:{{ .image.tag }}
           imagePullPolicy: "{{ .image.pullPolicy }}"
-          command: ['./chaincode']
+          # command: ['./chaincode']
+          command: [ {{ .command }} ]
           env:
             - name: CHAINCODE_CCID
               valueFrom:
                 secretKeyRef:
-                  name: chaincode-ccid-{{ .name }}
+                  name: chaincode-ccid-{{ .name }}-{{ .version }}
                   key: ccid
             - name: CHAINCODE_ADDRESS
               value: "0.0.0.0:{{ .port }}"

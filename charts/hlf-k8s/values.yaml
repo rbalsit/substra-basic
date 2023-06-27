@@ -14,14 +14,14 @@
 
 fabric-tools:
   image:
-    repository: substrafoundation/fabric-tools
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-tools
+    tag: 1
     pullPolicy: IfNotPresent
 
 fabric-ca-tools:
   image:
-    repository: substrafoundation/fabric-ca-tools
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-ca-tools
+    tag: 1
     pullPolicy: IfNotPresent
 
 nginx-ingress:
@@ -66,54 +66,54 @@ chaincodes: []
 #     pullPolicy: IfNotPresent
 
 
-appChannels:
-- channelName: mychannel
+# appChannels:
+# - channelName: mychannel
 
-  ## The organizations to add to the application channel (see README)
-  organizations: []
-  # - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1/config/configOrgWithAnchors.json }
-  # - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2/config/configOrgWithAnchors.json }
+#   ## The organizations to add to the application channel (see README)
+#   organizations: []
+#   # - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1/config/configOrgWithAnchors.json }
+#   # - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2/config/configOrgWithAnchors.json }
 
-  ## The organizations to fetch signed proposals from (see README)
-  proposalOrganizations: []
-  # - { org: Org1, mspid: Org1MSP, proposalServerUrl: peer-1-org-appchannel-operator-mychannel.org-1/proposal/ }
-  # - { org: Org2, mspid: Org2MSP, proposalServerUrl: peer-2-org-appchannel-operator-mychannel.org-2/proposal/ }
+#   ## The organizations to fetch signed proposals from (see README)
+#   proposalOrganizations: []
+#   # - { org: Org1, mspid: Org1MSP, proposalServerUrl: peer-1-org-appchannel-operator-mychannel.org-1/proposal/ }
+#   # - { org: Org2, mspid: Org2MSP, proposalServerUrl: peer-2-org-appchannel-operator-mychannel.org-2/proposal/ }
 
-  channelPolicies: |-
-    Readers:
-        Type: ImplicitMeta
-        Rule: "ANY Readers"
-    Writers:
-        Type: ImplicitMeta
-        Rule: "ANY Writers"
-    Admins:
-        Type: ImplicitMeta
-        Rule: "ANY Admins"
+#   channelPolicies: |-
+#     Readers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Readers"
+#     Writers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Writers"
+#     Admins:
+#         Type: ImplicitMeta
+#         Rule: "ANY Admins"
 
-  appPolicies: |-
-    LifecycleEndorsement:
-        Type: ImplicitMeta
-        Rule: "ANY Endorsement"
-    Endorsement:
-        Type: ImplicitMeta
-        Rule: "MAJORITY Endorsement"
-    Readers:
-        Type: ImplicitMeta
-        Rule: "ANY Readers"
-    Writers:
-        Type: ImplicitMeta
-        Rule: "ANY Writers"
-    Admins:
-        Type: ImplicitMeta
-        Rule: "MAJORITY Admins"
+#   appPolicies: |-
+#     LifecycleEndorsement:
+#         Type: ImplicitMeta
+#         Rule: "ANY Endorsement"
+#     Endorsement:
+#         Type: ImplicitMeta
+#         Rule: "MAJORITY Endorsement"
+#     Readers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Readers"
+#     Writers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Writers"
+#     Admins:
+#         Type: ImplicitMeta
+#         Rule: "MAJORITY Admins"
 
-  chaincodes: []
+#   chaincodes: []
   # - name: mycc
   #   policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
   #   version: "1.0"
 
-  ingress:
-    enabled: false
+ingress:
+  enabled: false
     # annotations:
     #   kubernetes.io/ingress.class: nginx
     #   cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -206,8 +206,8 @@ hlf-peer:
   port: 7051
   image:
     # Use our own fabric-peer images with external chaincode binaries
-    repository: substrafoundation/fabric-peer
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-peer
+    tag: 1
   persistence:
     enabled: false
   discover-monitor:
@@ -246,8 +246,8 @@ hlf-couchdb:
   service:
     port: 5984
   image:
-    repository: hyperledger/fabric-couchdb
-    tag: 0.4.21
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/couchdb
+    tag: 1
   persistence:
     size: 10Gi
   couchdbUsername: couchdb
@@ -361,12 +361,12 @@ privateCa:
 
 enrollments:
   creds: []
-  ## Orderer
-  # - { name: admin, secret: adminpwd, options: "--id.attrs admin=true:ecert"}
-  # - { name: user, secret: pwd, options: "--id.type orderer"}
-  ## Peer
-  # - { name: admin, secret: adminpwd, options: "--id.attrs hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert"}
-  # - { name: user, secret: pwd, options: "--id.type peer"}
+#   ## Orderer
+#   # - { name: admin, secret: adminpwd, options: "--id.attrs admin=true:ecert"}
+#   # - { name: user, secret: pwd, options: "--id.type orderer"}
+#   ## Peer
+#   # - { name: admin, secret: adminpwd, options: "--id.attrs hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert"}
+#   # - { name: user, secret: pwd, options: "--id.type peer"}
   csrHost: service-hostname
 
 hooks:
