@@ -20,8 +20,8 @@ hlf-ca:
 hlf-ord:
   enabled: true
   monitor:
-    enabled: true
-  host: orderer1-hlf-ord.orderer
+    enabled: false
+  host: orderer2-hlf-ord.orderer
   ord:
     mspID: MyOrdererMSP
 
@@ -44,7 +44,7 @@ toolbox:
   enabled: false
 
 genesis:
-  generate: true
+  generate: false
 
 # hooks:
 #   serviceAccount:

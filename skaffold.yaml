@@ -23,9 +23,22 @@ deploy:
       - name: orderer1
         chartPath: charts/hlf-k8s
         namespace: orderer
-        valuesFiles: [examples/2-orgs-policy-any/values/orderer.yaml]
+        valuesFiles: [examples/2-orgs-policy-any/values/orderer1.yaml]
         imageStrategy:
           helm: {}
+      - name: orderer2
+        chartPath: charts/hlf-k8s
+        namespace: orderer
+        valuesFiles: [examples/2-orgs-policy-any/values/orderer2.yaml]
+        imageStrategy:
+          helm: {}
+      - name: orderer3
+        chartPath: charts/hlf-k8s
+        namespace: orderer
+        valuesFiles: [examples/2-orgs-policy-any/values/orderer3.yaml]
+        imageStrategy:
+          helm: {}
+
 
 
       - name: org-1-peer-1

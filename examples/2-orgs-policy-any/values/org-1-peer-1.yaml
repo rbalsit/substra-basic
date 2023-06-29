@@ -18,6 +18,22 @@ hlf-ca:
 
 hlf-ord:
   host: orderer1-hlf-ord.orderer
+  orderersList: 
+    # - host: msd-orderer2-hlf-ord.msd-orderer.svc.cluster.local
+    - host: orderer2-hlf-ord.orderer
+      port: 7050
+      ord_id: 2
+      secret:
+        tls: hlf-tls-orderer2
+        tlsClient: hlf-tls-orderer2
+    # - host: msd-orderer3-hlf-ord.msd-orderer.svc.cluster.local
+    - host: orderer3-hlf-ord.orderer
+      port: 7050
+      ord_id: 3
+      secret:
+        tls: hlf-tls-orderer3
+        tlsClient: hlf-tls-orderer3
+
 
 hlf-peer:
   host: org-1-peer-1-hlf-peer.org-1
@@ -30,13 +46,13 @@ hlf-peer:
     enabled: true
 
 chaincodes:
-  - name: mycc
-    address: org-1-peer-1-hlf-k8s-chaincode-mycc.org-1
+  - name: basic
+    address: org-1-peer-1-hlf-k8s-chaincode-basic.org-1
     port: 7052
     version: "1.0"
     image:
-      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic-chaincode                           
-      tag: 4
+      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic                           
+      tag: 2
       pullPolicy: IfNotPresent
   # - name: yourcc
   #   address: org-1-peer-1-hlf-k8s-chaincode-yourcc.org-1
@@ -80,7 +96,7 @@ appChannels:
   - name: mycc
     policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
     version: "1.0"
-    sequence: "1"
+    sequence: 1
     
   organizations:
     - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: org-1-peer-1-hlf-k8s-config-operator.org-1/config/configOrgWithAnchors.json }

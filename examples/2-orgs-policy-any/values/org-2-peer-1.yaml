@@ -30,13 +30,13 @@ hlf-peer:
     enabled: true
 
 chaincodes:
-  - name: mycc
-    address: org-2-peer-1-hlf-k8s-chaincode-mycc.org-2
+  - name: basic
+    address: org-2-peer-1-hlf-k8s-chaincode-basic.org-2
     port: 7052
     version: "1.0"
     image:
-      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic-chaincode                           
-      tag: 4
+      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic                           
+      tag: 1
       pullPolicy: IfNotPresent
   # - name: yourcc
   #   address: org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
