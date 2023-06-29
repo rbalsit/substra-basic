@@ -93,7 +93,7 @@ appChannels:
         Rule: "ANY Admins"
 
   chaincodes:
-  - name: mycc
+  - name: basic
     policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
     version: "1.0"
     sequence: 1

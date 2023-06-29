@@ -36,7 +36,7 @@ chaincodes:
     version: "1.0"
     image:
       repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basic                           
-      tag: 1
+      tag: 2
       pullPolicy: IfNotPresent
   # - name: yourcc
   #   address: org-2-peer-1-hlf-k8s-chaincode-yourcc.org-2
@@ -77,10 +77,10 @@ appChannels:
         Rule: "ANY Admins"
 
   chaincodes:
-  - name: mycc
+  - name: basic
     policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
     version: "1.0"
-    sequence: "1"    
+    sequence: 1
 
   organizations:
     - { org: MyOrg1, mspid: MyOrg1MSP, configUrl: org-1-peer-1-hlf-k8s-config-operator.org-1/config/configOrgWithAnchors.json }
