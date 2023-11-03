@@ -116,7 +116,7 @@ chaincodes:
   - name: productcontract
     address: msd-org-1-peer-1-hlf-k8s-chaincode-productcontract.msd-org-1.svc.cluster.local
     port: 9999
-    version: "2"
+    version: "1"
     tls_disabled: false
     privateDataCollectionFile: collections-config.json
     image:
@@ -160,8 +160,8 @@ appChannels:
       #   sequence: "1"
       - name: productcontract
         policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
-        version: "2"
-        sequence: "2"
+        version: "1"
+        sequence: "1"
 
 
     organizations:
