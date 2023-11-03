@@ -1,0 +1,57 @@
+# Copyright 2018 Owkin, inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+apiVersion: skaffold/v2beta24
+kind: Config
+
+deploy:
+  statusCheckDeadlineSeconds: 300
+  helm:
+    releases:
+      - name: msd-orderer
+        chartPath: charts/hlf-k8s
+        namespace: msd-orderer
+        valuesFiles: [values/orderer-ca.yaml]
+        imageStrategy:
+          helm: {}
+
+      - name: msd-org-1
+        chartPath: charts/hlf-k8s
+        namespace: msd-org-1
+        valuesFiles: [values/org-1-ca.yaml]
+        imageStrategy:
+          helm: {}
+
+      # - name: msd-org-2
+      #   chartPath: charts/hlf-k8s
+      #   namespace: msd-org-2
+      #   valuesFiles: [values/org-2-ca.yaml]
+      #   imageStrategy:
+      #     helm: {}
+
+
+    flags:
+      install: ["--create-namespace"]
+
+
+  kubectl:
+    manifests:
+      # - examples/secrets/secrets-orderer-genesis.yaml
+      # - examples/secrets/secrets-orderer.yaml
+      # - examples/secrets/secrets-org-1.yaml
+      # - examples/secrets/secrets-org-2.yaml
+      # For chaincode secrets deletion
+      - values/serviceAccounts/serviceAccount-orderer.yaml
+      - values/serviceAccounts/serviceAccount-org-1.yaml
+      # - values/serviceAccounts/serviceAccount-org-2.yaml

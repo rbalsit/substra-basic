@@ -209,6 +209,13 @@ spec:
     spec:
       serviceAccountName: {{ template "substra.fullname" $ }}
       containers:
+      - name: nginx
+        image: {{ $.Values.nginx.imageandtag }}
+        ports:
+          - containerPort: 80
+        volumeMounts:
+          - mountPath: /usr/share/nginx/html/config
+            name: data
       - name: fabric-tools
         image: {{ index $.Values "fabric-tools" "image" "repository" }}:{{ index $.Values "fabric-tools" "image" "tag" }}
         imagePullPolicy: "{{ index $.Values "fabric-tools" "image" "pullPolicy" }}"
@@ -220,8 +227,56 @@ spec:
 
             while true; do
               printf "[DEBUG] Discover application channel: {{ .channelName }}\n"
-              discover --configFile /etc/hyperledger/fabric/discoverConfig.yaml peers --channel {{ .channelName }} --server {{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }}
-              sleep 10
+              discover --configFile /etc/hyperledger/fabric/discoverConfig.yaml peers --channel {{ .channelName }} --server {{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }} > discoverpeerconfig.json
+              ## log to stdout
+              cat discoverpeerconfig.json
+              discover --configFile /etc/hyperledger/fabric/discoverConfig.yaml config --channel {{ .channelName }} --server {{ index $.Values "hlf-peer" "host" }}:{{ index $.Values "hlf-peer" "port" }} > channelconfig.json
+
+              ##### Start creating connection profile #####
+              ## Set env for TLS
+              CLIENT_TLS_PATH=/var/hyperledger/tls/client/pair/
+              PEER_CA_CERT=/var/hyperledger/tls/server/cert/cacert.pem
+              ## Create base of json
+              jq --null-input \
+                --arg clientKeyPem "$(awk 'NF {sub(/\r/, ""); printf "%s\n",$0;}' "${CLIENT_TLS_PATH}/tls.key")" \
+                --arg clientCertPem "$(awk 'NF {sub(/\r/, ""); printf "%s\n",$0;}' "${CLIENT_TLS_PATH}/tls.crt")" \
+            '{name: "{{ template "substra.fullname" $ }}", version: "{{ $.Chart.Name }}-{{ $.Chart.Version }}", client:{organization:"{{ $.Values.organization.id }}","connection":{"client":{"key": {"pem": $clientKeyPem}, "cert": {"pem":$clientCertPem}}}}}' > base.json
+
+              ## Create peer object: Note as of this impl we only create the peer for "this" release because we dont have the other peers tls readily available. To make cp for all peers, pull in tls info
+              cat discoverpeerconfig.json | jq '.[] | select( .MSPID == "{{ $.Values.organization.id }}" and (.Endpoint | contains("{{ index $.Values "hlf-peer" "host" }}"))) | {(.Endpoint[:-5] | rtrimstr("{{ substr (len $.Release.Name) (len (index $.Values "hlf-peer" "host")) (index $.Values "hlf-peer" "host") }}") ): {url: ("grpcs://"+.Endpoint)}}' | jq --slurp '.' > pre-peers.json
+
+              ## Create peerlist
+              peerList=$(cat discoverpeerconfig.json | jq '.[] | select( .MSPID == "{{ $.Values.organization.id }}" and (.Endpoint | contains("{{ index $.Values "hlf-peer" "host" }}"))) | (.Endpoint[:-5] | rtrimstr("{{ substr (len $.Release.Name) (len (index $.Values "hlf-peer" "host")) (index $.Values "hlf-peer" "host") }}") ) ' | jq --slurp -rc '.')
+
+              ## Modify pre-peer object to add tlsCaCert with pem string resulting in peers.json
+              cat pre-peers.json | jq --arg tlsCaPem "$(awk 'NF {sub(/\r/, ""); printf "%s\n",$0;}' "${PEER_CA_CERT}")" \
+                '.[] | keys[] as $k |  .[$k] + {"tlsCACerts": {"pem": $tlsCaPem}} | {($k): .}'| jq '. | {peers : .}' > peers.json
+
+              ## Create organziation object
+              jq --null-input --arg orgName "{{ $.Values.organization.name }}" --arg mspId "{{ $.Values.organization.id }}" \
+                --argjson peerList $peerList \
+                '. |{organizations: {($mspId): {"mspid": $mspId, "peers": $peerList}}}' > org.json
+
+              ## Setup orderers
+              ## Orderer tls
+              ORD_TLS_CACERT_PATH=/var/hyperledger/tls/ord/cert/cacert.pem
+
+              ## Create orderer object -- TODO we can't get the orderer release name to utilize the cool substr above so we have to settle with hard code for rtrimstr
+              cat channelconfig.json | jq --arg ordCaCertPem "$(awk 'NF {sub(/\r/, ""); printf "%s\n",$0;}' ${ORD_TLS_CACERT_PATH})" \
+                '.orderers | keys[] as $k | .[$k].endpoint[] | {(.host): {tlsCACerts: {pem: $ordCaCertPem},mspid: $k,url: ("grpcs://"+.host+":"+(.port|tostring))}}' | jq -s 'add | {orderers: .}' > ords.json
+
+              ## Get orderers list
+              ordList=$(cat channelconfig.json | jq '.orderers | keys[] as $k | .[$k].endpoint[] | (.host )' | jq --slurp -rc '.')
+
+              ## Create channel object
+              jq --null-input --arg channelName "{{ .channelName }}" --argjson ordList $ordList --argjson peerList $peerList '. | {channels:{($channelName): {"orderers": $ordList, "peers": $peerList}}}' > channels.json
+
+              ## join all json objects together to form cp
+              jq -s '.[4] * .[1] * .[3] * .[0] * .[2]' ords.json org.json peers.json channels.json base.json > /data/connection-profile.json
+
+              echo "Connection Profile:"
+              cat /data/connection-profile.json
+              sleep 60
             done
         resources:
           {{- toYaml $.Values.resources | nindent 14 }}
@@ -322,6 +377,26 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
     {{- end }}
+
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "substra.fullname" $ }}-monitor-{{ .channelName }}
+  labels:
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    app.kubernetes.io/name: {{ template "substra.name" $ }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app.kubernetes.io/name: {{ template "substra.name" $ }}-discover-monitor-{{ .channelName }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
 {{- end }}
 {{- end }}

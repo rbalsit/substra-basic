@@ -1,0 +1,22 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: check-cert-expiry-cronjob
+spec:
+  schedule: "0 0 * * *" # Set the schedule (every day at midnight)
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: check-cert-expiry-container
+            image: your_image_with_required_tools:latest
+            command: ["sh", "-c", "/scripts/check_cert_expiry.sh"]
+          restartPolicy: OnFailure
+          volumes:
+          - name: script-volume
+            configMap:
+              name: check-cert-expiry-script
+          volumeMounts:
+          - name: script-volume
+            mountPath: /scripts

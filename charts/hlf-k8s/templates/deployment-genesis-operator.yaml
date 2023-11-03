@@ -88,6 +88,12 @@ spec:
           name: tls-rootcert
         - mountPath: /var/hyperledger/tls/client/pair
           name: tls-client
+    {{- range index .Values "hlf-ord" "orderersList" }}
+        - mountPath: /var/hyperledger/tls/client{{.ord_id}}/pair
+          name: tls-client{{.ord_id}}
+        - mountPath: /var/hyperledger/tls/server{{.ord_id}}/pair
+          name: tls{{.ord_id}}
+    {{- end }}
         - mountPath: /var/hyperledger/tls/client/cert
           name: tls-clientrootcert
         - mountPath: /var/hyperledger/admin_msp/signcerts
@@ -122,6 +128,14 @@ spec:
       - name: tls-client
         secret:
           secretName: {{ index .Values "hlf-ord" "secrets" "ord" "tlsClient" }}
+    {{- range index .Values "hlf-ord" "orderersList" }}
+      - name: tls-client{{.ord_id}}
+        secret:
+          secretName: {{ .secret.tlsClient }}
+      - name: tls{{.ord_id}}
+        secret:
+          secretName: {{ .secret.tls }}
+    {{- end }}
       - name: tls-clientrootcert
         secret:
           secretName: {{ index .Values "hlf-ord" "secrets" "ord" "tlsClientRootCert" }}

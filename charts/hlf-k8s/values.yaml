@@ -14,23 +14,15 @@
 
 fabric-tools:
   image:
-    repository: substrafoundation/fabric-tools
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-tools
+    tag: 1
     pullPolicy: IfNotPresent
 
 fabric-ca-tools:
   image:
-    repository: substrafoundation/fabric-ca-tools
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-ca-tools
+    tag: 4
     pullPolicy: IfNotPresent
-
-nginx-ingress:
-  enabled: false
-  controller:
-    config:
-        server-tokens: "false"
-    extraArgs:
-      enable-ssl-passthrough: ""
 
 nodeSelector: {}
 
@@ -42,8 +34,8 @@ systemChannel:
   name: systemchannel
   organizations:
     ## The organizations to add to the system channel
-    #   - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1/config/configOrg.json }
-    #   - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2/config/configOrg.json }
+    #   - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1.svc.cluster.local/config/configOrg.json }
+    #   - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2.svc.cluster.local/config/configOrg.json }
   policies: |-
     Readers:
         Type: ImplicitMeta
@@ -56,92 +48,97 @@ systemChannel:
         Rule: "MAJORITY Admins"
 
 chaincodes: []
-# - name: mycc
-#   version: "1.0"
-#   address: "chaincode-org-0-substra-chaincode-chaincode.org-0"
-#   port: "7052"
-#   image:
-#     repository: substrafoundation/substra-chaincode
-#     tag: 0.1.1
-#     pullPolicy: IfNotPresent
+#- name: mycc
+#  ## NOTE: If externalService is set to true, do not deploy chaincode deployment and use external service instead. This requires cc-<name>-<version> secret that should be created from one of the peers where externalService is not set or is false
+#  ## externalService set to true also means this name, address, and port is not relavant as this information is contained in the secret.
+#  externalService: true
+#  version: "1.0"
+#  address: "chaincode-org-0-substra-chaincode-chaincode.org-0.svc.cluster.local"
+#  port: "7052"
+#  image:
+#    repository: substrafoundation/substra-chaincode
+#    tag: 0.3.0
+#    pullPolicy: IfNotPresent
 
 
-appChannels:
-- channelName: mychannel
-
-  ## The organizations to add to the application channel (see README)
-  organizations: []
-  # - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1/config/configOrgWithAnchors.json }
-  # - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2/config/configOrgWithAnchors.json }
-
-  ## The organizations to fetch signed proposals from (see README)
-  proposalOrganizations: []
-  # - { org: Org1, mspid: Org1MSP, proposalServerUrl: peer-1-org-appchannel-operator-mychannel.org-1/proposal/ }
-  # - { org: Org2, mspid: Org2MSP, proposalServerUrl: peer-2-org-appchannel-operator-mychannel.org-2/proposal/ }
-
-  channelPolicies: |-
-    Readers:
-        Type: ImplicitMeta
-        Rule: "ANY Readers"
-    Writers:
-        Type: ImplicitMeta
-        Rule: "ANY Writers"
-    Admins:
-        Type: ImplicitMeta
-        Rule: "ANY Admins"
-
-  appPolicies: |-
-    LifecycleEndorsement:
-        Type: ImplicitMeta
-        Rule: "ANY Endorsement"
-    Endorsement:
-        Type: ImplicitMeta
-        Rule: "MAJORITY Endorsement"
-    Readers:
-        Type: ImplicitMeta
-        Rule: "ANY Readers"
-    Writers:
-        Type: ImplicitMeta
-        Rule: "ANY Writers"
-    Admins:
-        Type: ImplicitMeta
-        Rule: "MAJORITY Admins"
-
-  chaincodes: []
-  # - name: mycc
-  #   policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
-  #   version: "1.0"
-
-  ingress:
-    enabled: false
-    # annotations:
-    #   kubernetes.io/ingress.class: nginx
-    #   cert-manager.io/cluster-issuer: letsencrypt-prod
-    #   cert-manager.io/http01-edit-in-place: "true"
-    #   nginx.ingress.kubernetes.io/client-body-buffer-size: 100m
-    #   nginx.ingress.kubernetes.io/proxy-body-size: 100m
-    # tls:
-    #   - secretName: config-server-tls-cert
-    #     hosts:
-    #       - peer-1-peer-appchannel-operator.org-1
-    # hosts:
-    #   - { host: peer-1-peer-appchannel-operator.org-1, paths: ["/mychannel/proposals"] }
+#appChannels:
+#- channelName: mychannel
+#  ## The organizations to add to the application channel (see README)
+#  organizations: []
+#  # - { org: Org1, mspid: Org1MSP, configUrl: peer-1-org-config-operator.org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+#  # - { org: Org2, mspid: Org2MSP, configUrl: peer-2-org-config-operator.org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+#
+#  ## The organizations to fetch signed proposals from (see README)
+#  proposalOrganizations: []
+#  # - { org: Org1, mspid: Org1MSP, proposalServerUrl: peer-1-org-appchannel-operator-mychannel.org-1.svc.cluster.local/proposal/ }
+#  # - { org: Org2, mspid: Org2MSP, proposalServerUrl: peer-2-org-appchannel-operator-mychannel.org-2.svc.cluster.local/proposal/ }
+#
+#  channelPolicies: |-
+#    Readers:
+#        Type: ImplicitMeta
+#        Rule: "ANY Readers"
+#    Writers:
+#        Type: ImplicitMeta
+#        Rule: "ANY Writers"
+#    Admins:
+#        Type: ImplicitMeta
+#        Rule: "ANY Admins"
+#
+#  appPolicies: |-
+#    LifecycleEndorsement:
+#        Type: ImplicitMeta
+#        Rule: "ANY Endorsement"
+#    Endorsement:
+#        Type: ImplicitMeta
+#        Rule: "MAJORITY Endorsement"
+#    Readers:
+#        Type: ImplicitMeta
+#        Rule: "ANY Readers"
+#    Writers:
+#        Type: ImplicitMeta
+#        Rule: "ANY Writers"
+#    Admins:
+#        Type: ImplicitMeta
+#        Rule: "MAJORITY Admins"
+#
+#  chaincodes: []
+#  # - name: mycc
+#  #   policy: "OR('MyOrg1MSP.member','MyOrg2MSP.member')"
+#  #   version: "1.0"
+#  #   sequence: "1"
+#
+#  ingress:
+#    enabled: false
+##    ingressClassName: nginx
+##    annotations:
+##     kubernetes.io/ingress.class: nginx
+##     cert-manager.io/cluster-issuer: letsencrypt-prod
+##     cert-manager.io/http01-edit-in-place: "true"
+##     nginx.ingress.kubernetes.io/client-body-buffer-size: 100m
+##     nginx.ingress.kubernetes.io/proxy-body-size: 100m
+##    tls:
+##     - secretName: config-server-tls-cert
+##       hosts:
+##         - peer-1-peer-appchannel-operator.org-1
+##    hosts:
+##     - { host: peer-1-peer-appchannel-operator.org-1, paths: [{path: "/mychannel/proposals", pathType: Exact} ]}
 
 configOperator:
   ingress:
     enabled: false
-    # annotations:
-    #   kubernetes.io/ingress.class: nginx
-    #   cert-manager.io/cluster-issuer: letsencrypt-prod
-    #   cert-manager.io/http01-edit-in-place: "true"
-    #   nginx.ingress.kubernetes.io/client-body-buffer-size: 100m
-    #   nginx.ingress.kubernetes.io/proxy-body-size: 100m
-    # tls:
-    #   - secretName: config-server-tls-cert
-    #     hosts:
-    #       - peer-1-peer-config-operator.org-1
-    # hosts:
-    #   - { host: peer-1-peer-config-operator.org-1, paths: ["/"] }
+#    ingressClassName: nginx
+#    annotations:
+#     kubernetes.io/ingress.class: nginx
+#     cert-manager.io/cluster-issuer: letsencrypt-prod
+#     cert-manager.io/http01-edit-in-place: "true"
+#     nginx.ingress.kubernetes.io/client-body-buffer-size: 100m
+#     nginx.ingress.kubernetes.io/proxy-body-size: 100m
+#    tls:
+#     - secretName: config-server-tls-cert
+#       hosts:
+#         - peer-1-peer-config-operator.org-1
+#    hosts:
+#     - { host: peer-1-peer-config-operator.org-1, paths: [{path: "/", pathType: Prefix}]}
 
 
 organization:
@@ -153,8 +150,6 @@ hlf-ca:
   scheme: http
   host: ca-hostname
   port: 7054
-  image:
-    tag: 1.4.9
   caName: rca
   adminUsername: caAdmin
   adminPassword: caPassword
@@ -165,38 +160,45 @@ hlf-ca:
       ca:
         pathlength: 1
       names:
-        c: FR
-        st: Loire-Atlantique
-        l: Nantes
-        o: Substra
-        ou: null
+        c: US
+        st: New York
+        l: New York City
+        o: Merck
+        ou: apdlt
     affiliations:
       substra: [paris, nantes]
 
   persistence:
-    enabled: false
-    # size: 20Gi
-    # storageClass: ""4
-
+    enabled: true
+    size: 5Gi
+    # storageClass: ""
+  resources:
+    limits:
+     cpu: 100m
+     memory: 128Mi
+    requests:
+     cpu: 50m
+     memory: 128Mi
   orderer:
     scheme: http
     host: orderer-ca-hostname
     port: 7054
 
 hlf-peer:
-  docker:
-    enabled:
-      false
   peer:
+    docker:
+      enabled:
+        true
     databaseType: CouchDB
-    couchdbInstance: cdb-peer
+    couchdbService: cdb-peer
+    couchdbSecret: network-org-1-peer-1-hlf-couchdb
     gossip:
-      bootstrap: "127.0.0.1:7051"
+      bootstrap: "127.0.0.1:8443"
     tls:
       server:
         enabled: "true"
       client:
-        enabled: "true"
+        enabled: "false"
     chaincode:
       builder: hyperledger/fabric-ccenv:2.2.1
       runtime:
@@ -206,10 +208,11 @@ hlf-peer:
   port: 7051
   image:
     # Use our own fabric-peer images with external chaincode binaries
-    repository: substrafoundation/fabric-peer
-    tag: latest
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-peer
+    tag: 1
   persistence:
-    enabled: false
+    enabled: true
+    size: 10Gi
   discover-monitor:
     enabled: false
   secrets:
@@ -239,31 +242,66 @@ hlf-peer:
     adminKey: hlf-msp-key-admin
     ## This should include the Orderer TLS 'cacert.pem'
     ordTlsRootCert: ord-tls-rootcert
-
+  resources:
+    limits:
+     cpu: 100m
+     memory: 512Mi
+    requests:
+     cpu: 100m
+     memory: 512Mi
 
 
 hlf-couchdb:
   service:
     port: 5984
   image:
-    repository: hyperledger/fabric-couchdb
-    tag: 0.4.21
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/couchdb
+    tag: 1
   persistence:
+    enabled: true
     size: 10Gi
   couchdbUsername: couchdb
   couchdbPassword: couchdbpwd
-
+  resources:
+    limits:
+     cpu: 100m
+     memory: 512Mi
+    requests:
+     cpu: 100m
+     memory: 512Mi
 
 hlf-ord:
+  logging:
+    grpc: info
+    msp: info
+    level: info
+    cauthdsl: info
   enabled: false
+#  ## Required only for orderer that generates genesis block
+  orderersList: {}
+#    - host: msd-orderer2-hlf-ord.msd-orderer.svc.cluster.local
+#      port: 7050
+#      ord_id: 2
+#      secret:
+#        tls: hlf-tls-admin
+#        tlsClient: hlf-tls-orderer2
+#    - host: msd-orderer3-hlf-ord.msd-orderer.svc.cluster.local
+#      port: 7050
+#      ord_id: 3
+#      secret:
+#        tls: hlf-tls-admin
+#        tlsClient: hlf-tls-orderer3
+
   host: orderer-hostname
   port: 7050
   maxMessageCount: 10
   batchTimeout: 500ms
   image:
-    tag: 2.2.1
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-orderer
+    tag: 1
   persistence:
-    enabled: false
+    enabled: true
+    size: 10Gi
   ord:
     type: etcdraft
     mspID: MyOrdererMSP
@@ -271,7 +309,7 @@ hlf-ord:
       server:
         enabled: "true"
       client:
-        enabled: "true"
+        enabled: "false"
   monitor:
     enabled: false
   secrets:
@@ -313,14 +351,21 @@ hlf-ord:
     BlockValidation:
         Type: ImplicitMeta
         Rule: "ANY Writers"
+  resources:
+    limits:
+     cpu: 100m
+     memory: 512Mi
+    requests:
+     cpu: 100m
+     memory: 512Mi
 
-users:
-  admin:
-      username: admin
-      password: adminpwd
-  user:
-      username: user
-      password: pwd
+#users:
+#  admin:
+#      username: admin
+#      password: adminpwd
+#  user:
+#      username: user
+#      password: pwd
 
 # Secrets names
 secrets:
@@ -385,4 +430,9 @@ toolbox:
   enabled: false
 
 genesis:
-  generate: true
+  generate: false
+  
+## Due to public docker hub, we need to pull nginx from priv repo
+nginx:
+  # imageandtag: "062790057578.dkr.ecr.us-east-1.amazonaws.com/apdlt-nginx:1.17.6"
+ imageandtag: "nginx:1.17.6"

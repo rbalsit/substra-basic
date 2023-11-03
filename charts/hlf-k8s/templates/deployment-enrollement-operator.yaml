@@ -30,6 +30,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
       labels:
         app.kubernetes.io/name: {{ template "substra.name" . }}-enrollment-operator
         app.kubernetes.io/instance: {{ .Release.Name }}

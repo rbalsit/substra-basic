@@ -1,14 +1,14 @@
 # HLF k8s
 
-HLF-k8s is a network of [Hyperledger Fabric](https://hyperledger-fabric.readthedocs.io/en/release-1.4) orderers and peers, forming a permissioned blockchain.
+HLF-k8s is a network of [Hyperledger Fabric](https://hyperledger-fabric.readthedocs.io/en/release-2.2/) orderers and peers, forming a permissioned blockchain.
 
 The network is formed of multiple nodes (peers/orderers). Each node is installed using the same chart, but with different configurations (see [Usage](#usage)).
 
-Hlf-k8s runs Hyperledger Fabric v1.4.
+Hlf-k8s runs Hyperledger Fabric v2.x
 
 ## Prerequisites
 
-- Kubernetes 1.14+
+- Kubernetes 1.16+
 
 ## Changelog
 
@@ -19,50 +19,60 @@ See [CHANGELOG.md](./CHANGELOG.md)
 The following table lists the configurable parameters of the hlf-k8s chart and default values.
 
 | Parameter                          | Description                                     | Default                                                    |
-| ---------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| ---------------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
 | **Peer** |  |  |
 | `hlf-peer.enabled` | If true, a HLF Peer will be installed | `true` |
 | `hlf-peer.peer.mspID` | ID of MSP the Peer belongs to | `Org1MSP` |
 | `hlf-peer.discover-monitor.enabled` | If true, create a discover monitor pod (see [Monitoring pods](#monitoring-pods)) | `false` |
 | `hlf-peer.peer.gossip.externalEndpoint` | HLF peer gossip external endpoint | `""` |
 | `hlf-peer.peer.databaseType` | Database type to use (goleveldb or CouchDB) | `CouchDB` |
+| `hlf-peer.peer.couchdbSecret` | Secret holding the couchdb credentials | `cdb-peer-hlf-k8s-couchdb-credentials` |
 | `hlf-peer.peer.couchdbInstance` | CouchDB chart name to use cdb-peer | `cdb-peer` |
 | `hlf-peer.host` | The Peers's host | `peer-hostname` |
 | `hlf-peer.port` | The Peers's port | `7051` |
-| `hlf-peer.docker.enabled` | If true, mount host docker socket in the peer container | `false` |
+| `hlf-peer.peer.docker.enabled` | If true, mount host docker socket in the peer container | `false` |
 | `hlf-peer.ingress.enabled` | If true, Ingress will be created for the Peer | `false` |
-| `hlf-peer.ingress.annotations` | Peer ingress annotations | (undefined) |
-| `hlf-peer.ingress.tls` | Peer ingress TLS configuration | (undefined) |
-| `hlf-peer.ingress.hosts` | Peer ingress hosts | (undefined) |
-| `hlf-peer.persistence.enabled` | If true, enable persistence for the Peer | `false` |
-| `hlf-peer.persistence.size` | Size of data volume | (undefined) |
-| `hlf-peer.persistence.storageClass` | Storage class of backing PVC | (undefined) |
+| `hlf-peer.ingress.annotations` | Peer ingress annotations | `nil` |
+| `hlf-peer.ingress.tls` | Peer ingress TLS configuration | `nil` |
+| `hlf-peer.ingress.hosts` | Peer ingress hosts | `nil` |
+| `hlf-peer.persistence.enabled` | If true, enable persistence for the Peer | `true` |
+| `hlf-peer.persistence.size` | Size of data volume | `10Gi` |
+| `hlf-peer.persistence.storageClass` | Storage class of backing PVC | `nil` |
 | `appChannels` | The application channels to create | `[{channelName: mychannel}]` |
-| `appChannels[].channelName` | The name of the application channel. Must be alphanumerical (9 characters max.) | (undefined) |
+| `appChannels[].channelName` | The name of the application channel. Must be alphanumerical (9 characters max.) | `nil` |
 | `appChannels[].organizations` | The organizations to add to the application channel. See [Add an organization to the application channel](#add-an-organization-to-the-application-channel). | `[]` |
 | `appChannels[].proposalOrganizations` | The organizations to fetch signed application channel update proposals from. | `[]` |
 | `appChannels[].channelPolicies` | This value overrides the default HLF channel policy. | (defined in values.yaml) |
 | `appChannels[].appPolicies` | This value overrides the default HLF application policy. | (defined in values.yaml) |
 | `appChannels[].chaincodes` | The chaincodes to install on the Peer. See [Install a chaincode](#install-a-chaincode). | `[]` |
-| `appChannels[].chaincodes[].name` | The name of the chaincode | (undefined) |
-| `appChannels[].chaincodes[].version` | The chaincode version | (undefined) |
-| `appChannels[].chaincodes[].policy` | The chaincode policy for this channel | (undefined) |
+| `appChannels[].chaincodes[].name` | The name of the chaincode | `nil` |
+| `appChannels[].chaincodes[].version` | The chaincode version | `nil` |
+| `appChannels[].chaincodes[].sequence` | The chaincode sequence | `nil` |
+| `appChannels[].chaincodes[].policy` | The chaincode policy for this channel | `nil` |
 | `appChannels[].ingress.enabled` | If true, Ingress will be created for this application channel operator. | `false` |
-| `appChannels[].ingress.annotations` | Application channel operator ingress annotations | (undefined) |
-| `appChannels[].ingress.tls` | Application channel operator ingress TLS configuration | (undefined) |
-| `appChannels[].ingress.hosts` | Application channel operator ingress hosts | (undefined) |
+| `appChannels[].ingress.annotations` | Application channel operator ingress annotations | `nil` |
+| `appChannels[].ingress.tls` | Application channel operator ingress TLS configuration | `nil` |
+| `appChannels[].ingress.hosts` | Application channel operator ingress hosts | `nil` |
+| `appChannels[].ingress.ingressClassName` | Ingress class that will be used for the ingress | `nil` |
+| `appChannels[].ingress.pathType` | Ingress path type | `nil` |
 | `chaincodes` | The chaincodes to install on the peer | `[]` |
-| `chaincodes[].name` | The name of the chaincode | (undefined) |
-| `chaincodes[].version` | The chaincode version | (undefined) |
-| `chaincodes[].address` | The URL to the chaincode service | (undefined) |
-| `chaincodes[].port` | The port to the chaincode service | (undefined) |
-| `chaincodes[].image.repository` | `chaincode` image repository | (undefined) |
-| `chaincodes[].image.tag` | `chaincode` image tag | (undefined) |
-| `chaincodes[].image.pullPolicy` | Image pull policy | (undefined) |
+| `chaincodes[].name` | The name of the chaincode | `nil` |
+| `chaincodes[].version` | The chaincode version | `nil` |
+| `chaincodes[].address` | The URL to the chaincode service | `nil` |
+| `chaincodes[].port` | The port to the chaincode service | `nil` |
+| `chaincodes[].logLevel` | The log level for the chaincode process | `nil`|
+| `chaincodes[].image.repository` | `chaincode` image repository | `nil` |
+| `chaincodes[].image.tag` | `chaincode` image tag | `nil` |
+| `chaincodes[].image.pullPolicy` | Image pull policy | `nil` |
+| `chaincodes[].image.pullImageSecret` | Image pull secret name | `nil` |
+| `chaincodes[].init.image.repository` | optional chaincode's `initContainer` image repository | `nil` |
+| `chaincodes[].init.image.tag` | optional chaincode's `initContainer` image tag | `nil` |
 | `configOperator.ingress.enabled` | If true, Ingress will be created for the config operator. | `false` |
-| `configOperator.ingress.annotations` | Config operator ingress annotations | (undefined) |
-| `configOperator.ingress.tls` | Config operator ingress TLS configuration | (undefined) |
-| `configOperator.ingress.hosts` | Config operator ingress hosts | (undefined) |
+| `configOperator.ingress.annotations` | Config operator ingress annotations | `nil` |
+| `configOperator.ingress.tls` | Config operator ingress TLS configuration | `nil` |
+| `configOperator.ingress.hosts` | Config operator ingress hosts | `nil` |
+| `configOperator.ingress.ingressClassName` | Ingress class that will be used for the ingress | `nil` |
+| `configOperator.ingress.pathType` | Ingress path type | `ImplementationSpecific` |
 | `genesis.generate` | If true, generate a HLF genesis block and populate the `secrets.genesis` secret | `true` |
 | **Orderer** |  |  |
 | `hlf-ord.enabled` | If true, a HLF Orderer will be installed | `false` |
@@ -70,22 +80,20 @@ The following table lists the configurable parameters of the hlf-k8s chart and d
 | `hlf-ord.port` | The Orderer's port | `7050` |
 | `hlf-ord.ord.mspID` | ID of MSP the Orderer belongs to | `MyOrdererMSP` |
 | `hlf-ord.monitor.enabled` | If true, create a monitor pod (see [Monitoring pods](#monitoring-pods)) | `false` |
-| `hlf-ord.ingress.enabled` | If true, Ingress will be created for the Orderer | (undefined) |
-| `hlf-ord.ingress.annotations` | Orderer ingress annotations | (undefined) |
-| `hlf-ord.ingress.tls` | Orderer ingress TLS configuration | (undefined) |
-| `hlf-ord.ingress.hosts` | Orderer ingress hosts | (undefined) |
-| `hlf-ord.persistence.enabled` | If true, enable persistence for the Orderer | `false` |
-| `hlf-ord.persistence.size` | Size of data volume | (undefined) |
-| `hlf-ord.persistence.storageClass` | Storage class of backing PVC | (undefined) |
+| `hlf-ord.ingress.enabled` | If true, Ingress will be created for the Orderer | `nil` |
+| `hlf-ord.ingress.annotations` | Orderer ingress annotations | `nil` |
+| `hlf-ord.ingress.tls` | Orderer ingress TLS configuration | `nil` |
+| `hlf-ord.ingress.hosts` | Orderer ingress hosts | `nil` |
+| `hlf-ord.persistence.enabled` | If true, enable persistence for the Orderer | `true` |
+| `hlf-ord.persistence.size` | Size of data volume | `10Gi` |
+| `hlf-ord.persistence.storageClass` | Storage class of backing PVC | `nil` |
 | `systemChannel.name` | The name of the system channel | `systemchannel` |
 | `systemChannel.organizations` | The organizations to add to the system channel. See [Add an organization to the system channel](#add-an-organization-to-the-system-channel). | `[]` |
 | **Common / Other** |  |  |
-| `fabric-tools.image.repository` | `fabric-tools` image repository | `substrafoundation/fabric-tools` |
-| `fabric-tools.image.tag` | `fabric-tools` image tag | `latest` |
+| `fabric-tools.image.repository` | `fabric-tools` image repository | `gcr.io/connect-314908/fabric-tools` |
+| `fabric-tools.image.tag` | `fabric-tools` image tag | `0.2.2` |
 | `fabric-tools.image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `fabric-ca-tools.image.repository` | `fabric-ca-tools` image repository | `substrafoundation/fabric-ca-tools` |
-| `fabric-ca-tools.image.tag` | `fabric-ca-tools` image tag | `latest` |
-| `fabric-ca-tools.image.pullPolicy` | Image pull policy | `IfNotPresent` |
+| `fabric-tools.image.pullImageSecret` | Image pull secret name | nil |
 | `nodeSelector` | Node labels for pod assignment | `{}` |
 | `tolerations` | Toleration labels for pod assignment | `[]` |
 | `affinity` | Affinity settings for pod assignment | `{}` |
@@ -100,11 +108,18 @@ The following table lists the configurable parameters of the hlf-k8s chart and d
 | `hlf-ca.orderer.scheme` | Orderer's CA scheme | `http` |
 | `hlf-ca.orderer.host` | Orderer's CA host | `orderer-ca-hostname` |
 | `hlf-ca.orderer.port` | Orderer's CA port | `7054` |
-| `hlf-ca.persistence.enabled` | If true, enable persistence for the CA | `false` |
-| `hlf-ca.persistence.size` | Size of data volume | (undefined) |
-| `hlf-ca.persistence.storageClass` | Storage class of backing PVC | (undefined) |
-| `nginx-ingress.enabled` | If true, an nginx Ingress controller will be created | `false` |
-| `nginx-ingress.controller.nginx-ingress.extraArgs` | Additional controller arguments | `enable-ssl-passthrough: ""` |
+| `hlf-ca.persistence.enabled` | If true, enable persistence for the CA | `true` |
+| `hlf-ca.persistence.size` | Size of data volume | `5Gi` |
+| `hlf-ca.persistence.storageClass` | Storage class of backing PVC | `nil` |
+| `couchdb.image.repository` | `couchdb` image repository | `hyperledger/fabric-couchdb` |
+| `couchdb.image.tag`| `couchdb` image tag | `0.4.21` |
+| `couchdb.image.pullPolicy`| Image pull policy| `IfNotPresent` |
+| `couchdb.service.port`| TCP port   | `5984` |
+| `couchdb.service.type`| K8S service type exposing ports, e.g. `ClusterIP`| `ClusterIP` |
+| `couchdb.persistence.size`| Size of data volume (adjust for production!) | `10Gi` |
+| `couchdb.persistence.storageClass`| Storage class of backing PVC | `default` |
+| `couchdb.couchdbUsername`| Username for CouchDB| `couchdb` |
+| `couchdb.couchdbPassword`| Password for CouchDB  | `couchdbpwd` |
 | `privateCa.enabled` | if true, use a private CA | `false` |
 | `privateCa.configMap.name` | The name of the ConfigMap containing the private CA certificate | `private-ca` |
 | `privateCa.configMap.fileName` | The CA certificate filename within the ConfigMap | `private-ca.crt` |
@@ -131,11 +146,11 @@ On a peer:
 chaincodes:
   - name: mycc
     version: "1.0"
-    address: "chaincode-org-0-substra-chaincode-chaincode.org-0"
+    address: "chaincode-org-1-substra-chaincode-chaincode.org-1.svc.cluster.local"
     port: "7052"
     image:
-      repository: substrafoundation/substra-chaincode
-      tag: 0.1.1
+      repository: substra/orchestrator-chaincode
+      tag: 0.3.0
       pullPolicy: IfNotPresent
 
 appChannels:
@@ -150,18 +165,19 @@ appChannels:
 ### Test hlf-k8s with your own chaincode
 
 
-Example with substra-chaincode
+Example with substra/orchestrator
 
 ```bash
-git clone git@github.com:SubstraFoundation/substra-chaincode.git
+git clone git@github.com:Substra/orchestrator.git
 ```
 
-Make your edits to substra-chaincode.
+Make your edits to substra/orchestrator.
 
-Then build substra-chaincode image:
+Then build the image:
 
 ```bash
-docker build -t substrafoundation/substra-chaincode:my-tag ./
+docker build -f docker/orchestrator-chaincode/Dockerfile -t substra/orchestrator-chaincode:dev .
+docker build -f docker/orchestrator-chaincode-init/Dockerfile -t substra/orchestrator-chaincode-init:dev .
 ```
 
 *Note: If you use minikube, you need to run `eval $(minikube -p minikube docker-env)` first*
@@ -169,15 +185,15 @@ docker build -t substrafoundation/substra-chaincode:my-tag ./
 
 Finally, modify deployment values to use your chaincode image:
 
-For instance with `substrafoundation/substra-chaincode:my-tag`
+For instance with `substra/orchestrator-chaincode:my-tag`
 ```yaml
 chaincodes:
-- address: network-org-1-peer-1-hlf-k8s-chaincode-mycc.org-1
+- address: network-org-1-peer-1-hlf-k8s-chaincode-mycc.org-1.svc.cluster.local
   name: mycc
   port: 7052
   version: "1.0"
   image:
-    repository: substrafoundation/substra-chaincode
+    repository: substra/orchestrator-chaincode
     tag: my-tag
 ```
 
@@ -297,16 +313,24 @@ Note that the monitor pod also shows the orgs that are part of the **system chan
 
 To enable the **monitor pod**, on the orderer:
 
-```
+```yaml
 monitor:
    enabled: true
 ```
 
 To enable the **discover monitor pod**, on the peer:
 
-```
+```yaml
 discover-monitor:
    enabled: true
+```
+
+### Installing behind an ingress
+
+As Hyperledger Fabric uses mutual TLS to authenticate between components, you need the ingress to keep the information encrypted when it sends it to the peer or orderer.
+In order to achieve this for example with an nginx ingress you need to set the following value in your ingress controller configuration:
+```yaml
+controller.extraArgs.enable-ssl-passthrough: ""
 ```
 
 

@@ -58,6 +58,9 @@ data:
       {{- if index .Values "hlf-ord" "enabled" }}
       OrdererEndpoints:
       - "{{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}"
+    {{- range index .Values "hlf-ord" "orderersList" }}
+      - "{{.host}}:{{.port}}"
+    {{- end }}
       {{- end }}
 
     Capabilities:
@@ -126,12 +129,21 @@ data:
         Orderer:
           Addresses:
           - {{ index .Values "hlf-ord" "host" }}:{{ index .Values "hlf-ord" "port" }}
+    {{- range index .Values "hlf-ord" "orderersList" }}
+          - {{ .host }}:{{ .port }}
+    {{- end }}
           EtcdRaft:
             Consenters:
             - Host: {{ index .Values "hlf-ord" "host" }}
               Port: {{ index .Values "hlf-ord" "port" }}
               ClientTLSCert: /var/hyperledger/tls/client/pair/tls.crt
               ServerTLSCert: /var/hyperledger/tls/server/pair/tls.crt
+    {{- range index .Values "hlf-ord" "orderersList" }}
+            - Host: {{ .host }}
+              Port: {{ .port }}
+              ClientTLSCert: /var/hyperledger/tls/client{{.ord_id}}/pair/tls.crt
+              ServerTLSCert: /var/hyperledger/tls/server{{.ord_id}}/pair/tls.crt
+    {{- end }}
           BatchSize:
             AbsoluteMaxBytes: 99 MB
             MaxMessageCount: {{ index .Values "hlf-ord" "maxMessageCount" }}

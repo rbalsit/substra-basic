@@ -163,7 +163,7 @@ spec:
 
               done < /config/system-organizations
 
-              sleep 10
+              sleep 20
             done
         resources:
           {{- toYaml .Values.resources | nindent 14 }}

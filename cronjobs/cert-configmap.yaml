@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: check-cert-expiry-script
+data:
+  check_cert_expiry.sh: |
+    # Paste the content of the check_cert_expiry.sh script here
+
+#!/bin/bash
+
+# Path to the certificate file
+CERT_FILE="/path/to/cert.pem"
+
+# Number of days before expiry to send the notification
+DAYS_BEFORE_EXPIRY=15
+
+# Get the expiry date of the certificate in Unix timestamp
+expiry_timestamp=$(openssl x509 -enddate -noout -in "$CERT_FILE" | awk -F= '{print $2}')
+
+# Calculate the current date in Unix timestamp
+current_timestamp=$(date +%s)
+
+# Calculate the difference in seconds between expiry and current date
+time_difference=$((expiry_timestamp - current_timestamp))
+
+# Calculate the number of days remaining for certificate expiry
+days_remaining=$((time_difference / 86400))
+
+# If the number of days remaining is less than the specified threshold, send the notification email
+if [ "$days_remaining" -lt "$DAYS_BEFORE_EXPIRY" ]; then
+    # Add your email sending logic here (e.g., using mailx or any other email client)
+    echo "Your certificate will expire in $days_remaining days. Please renew it." | mail -s "Certificate Expiry Notification" recipient@example.com
+fi
+
+

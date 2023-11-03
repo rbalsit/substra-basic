@@ -1,0 +1,150 @@
+organization:
+  id: MsdOrdererMSP
+  name: MsdOrderer
+  
+hlf-peer:
+  enabled: false
+  
+hlf-ca:
+  enabled: false
+  caName: rcaOrderer
+  adminUsername: caAdmin
+  adminPassword: caPassword
+  host: msd-orderer-hlf-ca.msd-orderer.svc.cluster.local
+  orderer:
+    host: msd-orderer-hlf-ca.msd-orderer.svc.cluster.local
+  initContainerImage: "062790057578.dkr.ecr.us-east-1.amazonaws.com/apdlt-jwilder/dockerize"
+#  service:
+#    type: LoadBalancer
+
+hlf-ord:
+  service:
+    # type: LoadBalancer
+    # annotations:
+    #   # service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+    #   service.beta.kubernetes.io/aws-load-balancer-name: msd-test-orderer-orderer1
+    #   service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: '30'
+    #   # external-dns.alpha.kubernetes.io/hostname: orderer1-test.msd-orderer.apdlt-dev.merck.com
+    #   # https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2337#issuecomment-962277130
+    #   service.beta.kubernetes.io/aws-load-balancer-type: external ## TODO HUY warning: using this as external has some weird behaviors where some requests makes it to the service and some doesn;t. nlb-ip although its a classic lb is more stable
+    #   # service.beta.kubernetes.io/aws-load-balancer-type: nlb-ip
+    #   # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    #   service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    #   # service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    #   service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    #   # service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    #   service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: '7050'
+    #   # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+    #   # service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: ELBSecurityPolicy-TLS13-1-0-2021-06
+    #   # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: '443'
+    #   # service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: '*'
+
+  enabled: true
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: topology.kubernetes.io/region
+  #           operator: In
+  #           values:
+  #           - us-east-1
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #     - weight: 1
+  #       preference:
+  #         matchExpressions:
+  #         - key: topology.kubernetes.io/region
+  #           operator: In
+  #           values:
+  #           - us-east-1
+  ## Required only for orderer that generates genesis block TODO NOT WORKING
+  # orderersList: {}
+  #  - host: msd-orderer3-hlf-ord.msd-orderer.svc.cluster.local
+  #    port: 7050
+  #    ord_id: 2
+  #    secret:
+  #      tls: hlf-tls-orderer3
+  #      tlsClient: hlf-tls-orderer3
+  #  - host: msd-orderer3-hlf-ord.msd-orderer.svc.cluster.local
+  #    port: 7050
+  #    ord_id: 3
+  #    secret:
+  #      tls: hlf-tls-orderer3
+  #      tlsClient: hlf-tls-orderer3
+  monitor:
+    enabled: false
+  host: msd-orderer4-hlf-ord.msd-orderer.svc.cluster.local
+  ord:
+    mspID: MsdOrdererMSP
+  secrets:
+    ## These secrets should contain the Orderer crypto materials and credentials
+    ord:
+      ## Certificate, saved under key 'cert.pem'
+      cert: hlf-msp-cert-orderer4
+      ## Key, saved under 'key.pem'
+      key: hlf-msp-key-orderer4
+      ## TLS client root CA certificates saved under any names (as there may be multiple)
+      tlsClient: hlf-tls-orderer4
+      tls: hlf-tls-orderer4
+      ## TLS client root CA certificates saved under any names (as there may be multiple)
+  ingress:
+   enabled: false
+   ingressClassName: alb
+   annotations:
+    alb.ingress.kubernetes.io/subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '300'
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+#    alb.ingress.kubernetes.io/backend-protocol: HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}, {"HTTPS":7050}]'
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    external-dns.alpha.kubernetes.io/hostname: orderer1.apdlt-dev.merck.com #
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+    alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+   pathType: Prefix
+   path: /
+   hosts:
+       - orderer1.apdlt-dev.merck.com
+secrets:
+  cert: hlf-msp-cert-orderer4
+  ## Key, saved under 'key.pem'
+  key: hlf-msp-key-orderer4
+  ## TLS client root CA certificates saved under any names (as there may be multiple)
+  tlsClient: hlf-tls-orderer4
+# genesis:
+#   generate: true
+
+appChannels:
+  - channelName: msd-channel
+  # - channelName: msd-in-channel
+  
+systemChannel:
+  organizations:
+    - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-1-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrg.json }
+#    - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-2-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrg.json }
+    # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-1-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrg.json }
+#    - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-2-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrg.json }
+
+# Config operator ingress
+configOperator:
+  ingress:
+    enabled: false
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: configoperator.msd-orderer.apdlt-dev.merck.com
+      alb.ingress.kubernetes.io/listen-ports:  '[{"HTTPS":443}, {"HTTPS":7050}]'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+      alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+    hosts:
+     - { host: "configoperator.msd-orderer.apdlt-dev.merck.com" , paths: [{path: "/", pathType: Prefix}]}
+
+toolbox:
+  enabled: false
+
+hooks:
+  serviceAccount:
+    name: substra-delete-hook

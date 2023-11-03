@@ -1,5 +1,6 @@
 {{- if index .Values "hlf-peer" "enabled" }}
 {{- range  .Values.chaincodes }}
+{{- if not .externalService }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -27,15 +28,17 @@ spec:
         - name: substra-chaincode-{{ .name }}
           image: {{ .image.repository }}:{{ .image.tag }}
           imagePullPolicy: "{{ .image.pullPolicy }}"
-          command: ['./chaincode']
+          command: [ {{ .command }}]
           env:
             - name: CHAINCODE_CCID
               valueFrom:
                 secretKeyRef:
-                  name: chaincode-ccid-{{ .name }}
+                  name: ccid-{{ .name }}-{{ .version }}
                   key: ccid
             - name: CHAINCODE_ADDRESS
               value: "0.0.0.0:{{ .port }}"
+            - name: TLS_DISABLED
+              value: "{{ .tls_disabled }}"
             - name: TLS_CERT_FILE
               value: "/var/hyperledger/tls/client/pair/tls.crt"
             - name: TLS_KEY_FILE
@@ -76,5 +79,6 @@ spec:
   selector:
     app.kubernetes.io/name: {{ template "substra.name" $ }}-chaincode-{{ .name }}
     app.kubernetes.io/instance: {{ $.Release.Name }}
+{{- end }}
 {{- end }}
 {{- end }}

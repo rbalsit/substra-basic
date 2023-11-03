@@ -1,0 +1,12 @@
+{
+    "index": {
+        "fields": [
+            {
+            "lastUpdatedat":"desc"
+            }
+        ]
+    },
+    "ddoc": "timeDoc",
+    "name": "time",
+    "type": "json"
+}

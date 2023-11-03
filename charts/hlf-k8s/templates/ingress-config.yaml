@@ -1,5 +1,5 @@
 {{- if .Values.configOperator.ingress.enabled -}}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ template "substra.fullname" . }}-config-operator
@@ -23,16 +23,21 @@ spec:
       secretName: {{ .secretName }}
   {{- end }}
 {{- end }}
+  ingressClassName: {{ .Values.configOperator.ingress.ingressClassName }}
   rules:
   {{- range  .Values.configOperator.ingress.hosts  }}
+    {{- $pathType := .pathType }}
     - host: {{ .host | quote }}
       http:
         paths:
         {{- range .paths }}
-          - path: {{ . }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
             backend:
-              serviceName: {{ template "substra.fullname" $ }}-config-operator
-              servicePort: http
+              service:
+                name: {{ template "substra.fullname" $ }}-config-operator
+                port:
+                  name: http
         {{- end }}
   {{- end }}
 {{- end }}

@@ -1,0 +1,15 @@
+dependencies:
+- name: hlf-ca
+  repository: file://../hlf-ca
+  version: 2.0.1
+- name: hlf-ord
+  repository: file://../hlf-ord
+  version: 3.0.1
+- name: hlf-peer
+  repository: file://../hlf-peer
+  version: 5.0.0
+- name: hlf-couchdb
+  repository: https://owkin.github.io/charts/
+  version: 2.0.1
+digest: sha256:8f9e3e8cd0f1dc1146b336ba959df73efdd5cc8f1d95ed1c5e089d81d8a7fad0
+generated: "2023-08-10T06:23:19.886836131Z"

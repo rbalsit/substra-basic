@@ -1,0 +1,371 @@
+organization:
+  id: MsdPeerMsp
+  name: MsdPeerOrg
+
+hlf-ca:
+  enabled: false
+  caName: rcaOrg1
+  adminUsername: caAdmin
+  adminPassword: caPassword #TODO Change this
+  host: msd-org-1-hlf-ca.msd-org-1.svc.cluster.local
+  orderer:
+    host: msd-orderer-hlf-ca.msd-orderer.svc.cluster.local
+  initContainerImage: "062790057578.dkr.ecr.us-east-1.amazonaws.com/apdlt-jwilder/dockerize"
+  
+hlf-ord:
+  host: msd-orderer1-hlf-ord.msd-orderer.svc.cluster.local
+  
+hlf-peer:
+  logging:
+    spec: debug
+  service:
+    # type: LoadBalancer
+    # annotations:
+    #   # service.beta.kubernetes.io/aws-load-balancer-subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+    #   service.beta.kubernetes.io/aws-load-balancer-name: msd-test-org1-peer1
+    #   service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: '30'
+    #   external-dns.alpha.kubernetes.io/hostname: peer1-test.msd-org-1.apdlt-dev.merck.com
+    #   # https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/2337#issuecomment-962277130
+    #   service.beta.kubernetes.io/aws-load-balancer-type: external
+    #   # service.beta.kubernetes.io/aws-load-balancer-type: nlb-ip
+    #   # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    #   # service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+    #   service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    #   service.beta.kubernetes.io/aws-load-balancer-scheme: internal
+    #   service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: '7051'
+
+  host: msd-org-1-peer-1-hlf-peer.msd-org-1.svc.cluster.local
+  # host: peer1-test.msd-org-1.apdlt-dev.merck.com
+  peer:
+    couchdbSecret: msd-org-1-peer-1-hlf-couchdb
+    couchdbService: msd-org-1-peer-1-hlf-couchdb.msd-org-1.svc.cluster.local
+    image:
+    # Use our own fabric-peer images with external chaincode binaries
+      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-peer
+    mspID: MsdPeerMsp
+    gossip:
+      externalEndpoint: msd-org-1-peer-1-hlf-peer.msd-org-1.svc.cluster.local:7051
+      # externalEndpoint: peer1-test.msd-org-1.apdlt-dev.merck.com:7051
+  discover-monitor:
+    enabled: true
+  secrets:
+    peer:
+      ## Certificate, saved under key 'cert.pem'
+      cert: hlf-msp-cert-peer1
+      ## Key, saved under 'key.pem'
+      key: hlf-msp-key-peer1
+      ## TLS client root CA certificates saved under any names (as there may be multiple)
+      tlsClient: hlf-tls-peer1
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: topology.kubernetes.io/region
+  #           operator: In
+  #           values:
+  #           - us-east-1
+  #     preferredDuringSchedulingIgnoredDuringExecution:
+  #     - weight: 1
+  #       preference:
+  #         matchExpressions:
+  #         - key: topology.kubernetes.io/region
+  #           operator: In
+  #           values:
+  #           - us-east-1
+
+  ingress:
+    enabled: false
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: '300'
+      alb.ingress.kubernetes.io/backend-protocol-version: GRPC
+#      alb.ingress.kubernetes.io/backend-protocol: HTTPS
+      alb.ingress.kubernetes.io/ssl-redirect: '443'
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}, {"HTTPS":7051}, {"HTTPS":7053}]'
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: peer1.msd-org-1.apdlt-dev.merck.com
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+      alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+    pathType: Prefix
+    path: /
+    hosts:
+      - peer1.msd-org-1.apdlt-dev.merck.com
+#    tls: []
+    #  - secretName: hlf-peer-tls
+    #    hosts:
+    #      - hlf-peer.local
+secrets:
+  cert: hlf-msp-cert-peer1
+  key: hlf-msp-key-peer1
+  tlsClient: hlf-tls-peer1
+
+chaincodes:
+  # - name: basic
+  #   address: msd-org-1-peer-1-hlf-k8s-chaincode-basic.msd-org-1.svc.cluster.local
+  #   port: 9999
+  #   version: "1"
+  #   tls_disabled: true
+  #   privateDataCollectionFile: collections-config.json
+  #   image:
+  #     repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/basicindex
+  #     tag: 4
+  #     pullPolicy: Always
+  - name: productcontract
+    address: msd-org-1-peer-1-hlf-k8s-chaincode-productcontract.msd-org-1.svc.cluster.local
+    port: 9999
+    version: "2"
+    tls_disabled: false
+    privateDataCollectionFile: collections-config.json
+    image:
+      repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/product
+      tag: 5
+      pullPolicy: Always
+
+      
+appChannels:
+  - channelName: msd-channel
+    channelPolicies: |-
+      Readers:
+        Type: ImplicitMeta
+        Rule: "ANY Readers"
+      Writers:
+        Type: ImplicitMeta
+        Rule: "ANY Writers"
+      Admins:
+        Type: ImplicitMeta
+        Rule: "ANY Admins"
+    appPolicies: |-
+      LifecycleEndorsement:
+          Type: ImplicitMeta
+          Rule: "ANY Endorsement"
+      Endorsement:
+          Type: ImplicitMeta
+          Rule: "ANY Endorsement"
+      Readers:
+          Type: ImplicitMeta
+          Rule: "ANY Readers"
+      Writers:
+          Type: ImplicitMeta
+          Rule: "ANY Writers"
+      Admins:
+          Type: ImplicitMeta
+          Rule: "ANY Admins"
+    chaincodes:
+      # - name: basic
+      #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+      #   version: "1"
+      #   sequence: "1"
+      - name: productcontract
+        policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+        version: "2"
+        sequence: "2"
+
+
+    organizations:
+      - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-1-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-2-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-1-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-2-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+
+    # proposalOrganizations:
+    #   - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+    #   # - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+    #   # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+    #   # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+
+  # - channelName: msd-tst-channel
+  #   channelPolicies: |-
+  #     Readers:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Readers"
+  #     Writers:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Writers"
+  #     Admins:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Admins"
+  #   appPolicies: |-
+  #     LifecycleEndorsement:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Endorsement"
+  #     Endorsement:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Endorsement"
+  #     Readers:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Readers"
+  #     Writers:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Writers"
+  #     Admins:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Admins"
+  #   chaincodes:
+  #     # - name: basic
+  #     #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+  #     #   version: "1"
+  #     #   sequence: "1"
+  #     - name: productcontract
+  #       policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+  #       version: "1"
+  #       sequence: "1"        
+
+  #   organizations:
+  #     - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-1-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-2-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-1-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+      # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-2-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+
+  # # #   # proposalOrganizations:
+  # # #   #   - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+  # # #     # - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+  # # #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+  # # #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+
+  # - channelName: msd-inn-channel
+  #   channelPolicies: |-
+  #     Readers:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Readers"
+  #     Writers:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Writers"
+  #     Admins:
+  #       Type: ImplicitMeta
+  #       Rule: "ANY Admins"
+  #   appPolicies: |-
+  #     LifecycleEndorsement:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Endorsement"
+  #     Endorsement:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Endorsement"
+  #     Readers:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Readers"
+  #     Writers:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Writers"
+  #     Admins:
+  #         Type: ImplicitMeta
+  #         Rule: "ANY Admins"
+  #   chaincodes:
+  #     - name: basic
+  #       policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+  #       version: "1"
+  #       sequence: "1"
+
+  #   organizations:
+  #     - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-1-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+  #     # - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-2-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+  #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-1-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+  #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-2-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+
+  # #   proposalOrganizations:
+  # #     - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+  # #     # - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-1.svc.cluster.local/proposal/ }
+  # #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-1-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+  # #     # - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-2-hlf-k8s-appchannel-operator-msd-channel.msd-org-2.svc.cluster.local/proposal/ }
+
+# appChannels:
+#   - channelName: msd-in-channel
+#     channelPolicies: |-
+#       Readers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Readers"
+#       Writers:
+#         Type: ImplicitMeta
+#         Rule: "ANY Writers"
+#       Admins:
+#         Type: ImplicitMeta
+#         Rule: "ANY Admins"
+#     appPolicies: |-
+#       LifecycleEndorsement:
+#           Type: ImplicitMeta
+#           Rule: "ANY Endorsement"
+#       Endorsement:
+#           Type: ImplicitMeta
+#           Rule: "ANY Endorsement"
+#       Readers:
+#           Type: ImplicitMeta
+#           Rule: "ANY Readers"
+#       Writers:
+#           Type: ImplicitMeta
+#           Rule: "ANY Writers"
+#       Admins:
+#           Type: ImplicitMeta
+#           Rule: "ANY Admins"
+#     chaincodes:
+#       - name: basic
+#         policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+#         version: "1"
+#         sequence: "1"
+#       # - name: product
+#       #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+#       #   version: "1"
+#       #   sequence: "1"
+#       # - name: basic-assets-priv
+#       #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+#       #   version: "1"
+#       #   sequence: "1"
+#       # - name: basic-assets
+#       #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+#       #   version: "1"
+#       #   sequence: "1"
+#       # - name: multitenant
+#       #   policy: "OR('MsdPeerMsp.member','MsdPeerMsp2.member')"
+#       #   version: "1"
+#       #   sequence: "1"
+
+#     organizations:
+#       - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-1-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+#       - { org: MsdPeerOrg, mspid: MsdPeerMsp, configUrl: msd-org-1-peer-2-hlf-k8s-config-operator.msd-org-1.svc.cluster.local/config/configOrgWithAnchors.json }
+#       - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-1-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+#       - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, configUrl: msd-org-2-peer-2-hlf-k8s-config-operator.msd-org-2.svc.cluster.local/config/configOrgWithAnchors.json }
+
+#     proposalOrganizations:
+#       - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-1-hlf-k8s-appchannel-operator-msd-in-channel.msd-org-1.svc.cluster.local/proposal/ }
+#       - { org: MsdPeerOrg, mspid: MsdPeerMsp, proposalServerUrl: msd-org-1-peer-2-hlf-k8s-appchannel-operator-msd-in-channel.msd-org-1.svc.cluster.local/proposal/ }
+#       - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-1-hlf-k8s-appchannel-operator-msd-in-channel.msd-org-2.svc.cluster.local/proposal/ }
+#       - { org: MsdPeerOrg2, mspid: MsdPeerMsp2, proposalServerUrl: msd-org-2-peer-2-hlf-k8s-appchannel-operator-msd-in-channel.msd-org-2.svc.cluster.local/proposal/ }
+    # Ingress for channel opreator -- allows proposals to be fetched
+    # uses networking.k8s.io/v1 api
+    # https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
+    ingress:
+      enabled: false
+      ingressClassName: alb
+      annotations:
+        alb.ingress.kubernetes.io/scheme: internet-facing
+        alb.ingress.kubernetes.io/target-type: ip
+        external-dns.alpha.kubernetes.io/hostname: appchannel1.msd-org-1.apdlt-dev.merck.com
+        alb.ingress.kubernetes.io/listen-ports:  '[{"HTTPS":443}]'
+        alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+        alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+      hosts:
+       - { host: "appchannel1.msd-org-1.apdlt-dev.merck.com", paths: [{path: "/", pathType: Prefix} ]}
+
+# Config operator ingress
+configOperator:
+  ingress:
+    enabled: false
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: configoperator1.msd-org-1.apdlt-dev.merck.com
+      alb.ingress.kubernetes.io/listen-ports:  '[{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+      alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+    hosts:
+     - { host: "configoperator1.msd-org-1.apdlt-dev.merck.com" , paths: [{path: "/", pathType: Prefix}] }
+
+toolbox:
+  enabled: true
+
+hooks:
+  serviceAccount:
+    name: substra-delete-hook

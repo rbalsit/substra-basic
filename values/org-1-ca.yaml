@@ -1,0 +1,63 @@
+organization:
+  id: MsdPeerMsp
+  name: MsdPeerOrg
+
+hlf-ca:
+  image:
+    repository: us-central1-docker.pkg.dev/blockedge-381408/hlf-img/fabric-ca
+    tag: 1
+  initContainer:
+    image:
+      # repository: 062790057578.dkr.ecr.us-east-1.amazonaws.com/apdlt-jwilder/dockerize
+      # tag: latest
+      pullPolicy: IfNotPresent
+  enabled: true
+  caName: rcaOrg1
+  adminUsername: caAdmin
+  adminPassword: caPassword #TODO Change this
+  host: msd-org-1-hlf-ca.msd-org-1.svc.cluster.local
+  orderer:
+    host: msd-orderer-hlf-ca.msd-orderer.svc.cluster.local
+  ingress:
+    enabled: false
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/subnets: subnet-07e60445ac30858e2, subnet-0702bb42ee4440351
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      external-dns.alpha.kubernetes.io/hostname: ca.msd-org-1.apdlt-dev.merck.com
+      alb.ingress.kubernetes.io/listen-ports:  '[{"HTTP": 80}, {"HTTPS":443}]'
+      alb.ingress.kubernetes.io/healthcheck-path: /api/v1/cainfo
+      alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+      alb.ingress.kubernetes.io/ssl-redirect: '443'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:062790057578:certificate/513b031f-eef5-442d-b91a-bf1f93ea2d5c
+      alb.ingress.kubernetes.io/security-groups: sg-001591e3118ce863a, sg-0d4a019ed14fd6fbe
+    path: /
+    pathType: Prefix
+    hosts:
+      - "ca.msd-org-1.apdlt-dev.merck.com"
+#  service:
+#    type: LoadBalancer
+
+hlf-peer:
+  enabled: false
+
+secrets:
+  cert: hlf-msp-cert-user
+  key: hlf-msp-key-user
+  tlsClient: hlf-tls-user
+
+enrollments:
+  creds:
+    - { name: admin, secret: adminpwd, options: "--id.attrs hf.Registrar.Roles=client,hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,abac.init=true:ecert"}
+    - { name: user, secret: pwd, options: "--id.type peer"}
+    - { name: peer1, secret: pwd, options: "--id.type peer"}
+    - { name: peer2, secret: pwd, options: "--id.type peer"}
+  csrHost: "127.0.0.1,localhost,234.435.56.7,*.msd-org-1.svc.cluster.local,*.elb.us-east-1.amazonaws.com,*.msd-org-1.apdlt-dev.merck.com"
+  
+toolbox:
+  enabled: false
+
+hooks:
+  serviceAccount:
+    name: substra-delete-hook
